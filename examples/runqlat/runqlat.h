@@ -6,8 +6,8 @@
 #define MAX_SLOTS	26
 
 struct hist {
-	__u32 slots[MAX_SLOTS];
+	unsigned int slots[MAX_SLOTS];
 	char comm[TASK_COMM_LEN];
-};
+} __attribute__((packed));
 
 #endif /* __RUNQLAT_H */

@@ -3,15 +3,15 @@
 //
 // Based on runqlat(8) from BCC by Bredan Gregg.
 // 10-Aug-2020   Wenbo Zhang   Created this.
-#include <signal.h>
+// #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <fcntl.h>
-#include <bpf/libbpf.h>
-#include <bpf/bpf.h>
+// #include "vmlinux.h"
 #include "runqlat.h"
 #include "runqlat.skel.h"
 #include "trace_helpers.h"
@@ -53,90 +53,90 @@ const char argp_program_doc[] =
 
 #define OPT_PIDNSS	1	/* --pidnss */
 
-static const struct argp_option opts[] = {
-	{ "timestamp", 'T', NULL, 0, "Include timestamp on output" },
-	{ "milliseconds", 'm', NULL, 0, "Millisecond histogram" },
-	{ "pidnss", OPT_PIDNSS, NULL, 0, "Print a histogram per PID namespace" },
-	{ "pids", 'P', NULL, 0, "Print a histogram per process ID" },
-	{ "tids", 'L', NULL, 0, "Print a histogram per thread ID" },
-	{ "pid", 'p', "PID", 0, "Trace this PID only" },
-	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
-	{ "cgroup", 'c', "/sys/fs/cgroup/unified", 0, "Trace process in cgroup path"},
-	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
-	{},
-};
-
-static error_t parse_arg(int key, char *arg, struct argp_state *state)
+static void
+print_usage(void)
 {
-	static int pos_args;
-
-	switch (key) {
-	case 'h':
-		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
-		break;
-	case 'v':
-		env.verbose = true;
-		break;
-	case 'm':
-		env.milliseconds = true;
-		break;
-	case 'p':
-		errno = 0;
-		env.pid = strtol(arg, NULL, 10);
-		if (errno) {
-			fprintf(stderr, "invalid PID: %s\n", arg);
-			argp_usage(state);
-		}
-		break;
-	case 'L':
-		env.per_thread = true;
-		break;
-	case 'P':
-		env.per_process = true;
-		break;
-	case OPT_PIDNSS:
-		env.per_pidns = true;
-		break;
-	case 'T':
-		env.timestamp = true;
-		break;
-	case 'c':
-		env.cgroupspath = arg;
-		env.cg = true;
-		break;
-	case ARGP_KEY_ARG:
-		errno = 0;
-		if (pos_args == 0) {
-			env.interval = strtol(arg, NULL, 10);
-			if (errno) {
-				fprintf(stderr, "invalid internal\n");
-				argp_usage(state);
-			}
-		} else if (pos_args == 1) {
-			env.times = strtol(arg, NULL, 10);
-			if (errno) {
-				fprintf(stderr, "invalid times\n");
-				argp_usage(state);
-			}
-		} else {
-			fprintf(stderr,
-				"unrecognized positional argument: %s\n", arg);
-			argp_usage(state);
-		}
-		pos_args++;
-		break;
-	default:
-		return ARGP_ERR_UNKNOWN;
-	}
-	return 0;
+    printf("%s\n", argp_program_version);
+    printf("%s\n", argp_program_doc);
 }
 
-static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
-{
-	if (level == LIBBPF_DEBUG && !env.verbose)
-		return 0;
-	return vfprintf(stderr, format, args);
-}
+// static const struct argp_option opts[] = {
+// 	{ "timestamp", 'T', NULL, 0, "Include timestamp on output" },
+// 	{ "milliseconds", 'm', NULL, 0, "Millisecond histogram" },
+// 	{ "pidnss", OPT_PIDNSS, NULL, 0, "Print a histogram per PID namespace" },
+// 	{ "pids", 'P', NULL, 0, "Print a histogram per process ID" },
+// 	{ "tids", 'L', NULL, 0, "Print a histogram per thread ID" },
+// 	{ "pid", 'p', "PID", 0, "Trace this PID only" },
+// 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
+// 	{ "cgroup", 'c', "/sys/fs/cgroup/unified", 0, "Trace process in cgroup path"},
+// 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
+// 	{},
+// };
+
+// static error_t parse_arg(int key, char *arg, struct argp_state *state)
+// {
+// 	static int pos_args;
+
+// 	switch (key) {
+// 	case 'h':
+// 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
+// 		break;
+// 	case 'v':
+// 		env.verbose = true;
+// 		break;
+// 	case 'm':
+// 		env.milliseconds = true;
+// 		break;
+// 	case 'p':
+// 		errno = 0;
+// 		env.pid = strtol(arg, NULL, 10);
+// 		if (errno) {
+// 			fprintf(stderr, "invalid PID: %s\n", arg);
+// 			argp_usage(state);
+// 		}
+// 		break;
+// 	case 'L':
+// 		env.per_thread = true;
+// 		break;
+// 	case 'P':
+// 		env.per_process = true;
+// 		break;
+// 	case OPT_PIDNSS:
+// 		env.per_pidns = true;
+// 		break;
+// 	case 'T':
+// 		env.timestamp = true;
+// 		break;
+// 	case 'c':
+// 		env.cgroupspath = arg;
+// 		env.cg = true;
+// 		break;
+// 	case ARGP_KEY_ARG:
+// 		errno = 0;
+// 		if (pos_args == 0) {
+// 			env.interval = strtol(arg, NULL, 10);
+// 			if (errno) {
+// 				fprintf(stderr, "invalid internal\n");
+// 				argp_usage(state);
+// 			}
+// 		} else if (pos_args == 1) {
+// 			env.times = strtol(arg, NULL, 10);
+// 			if (errno) {
+// 				fprintf(stderr, "invalid times\n");
+// 				argp_usage(state);
+// 			}
+// 		} else {
+// 			fprintf(stderr,
+// 				"unrecognized positional argument: %s\n", arg);
+// 			argp_usage(state);
+// 		}
+// 		pos_args++;
+// 		break;
+// 	default:
+// 		return ARGP_ERR_UNKNOWN;
+// 	}
+// 	return 0;
+// }
 
 static void sig_handler(int sig)
 {
@@ -147,7 +147,7 @@ static int print_log2_hists(struct bpf_map *hists)
 {
 	const char *units = env.milliseconds ? "msecs" : "usecs";
 	int err, fd = bpf_map__fd(hists);
-	__u32 lookup_key = -2, next_key;
+	uint32_t lookup_key = -2, next_key;
 	struct hist hist;
 
 	while (!bpf_map_get_next_key(fd, &lookup_key, &next_key)) {
@@ -180,11 +180,11 @@ static int print_log2_hists(struct bpf_map *hists)
 
 int main(int argc, char **argv)
 {
-	static const struct argp argp = {
-		.options = opts,
-		.parser = parse_arg,
-		.doc = argp_program_doc,
-	};
+	// static const struct argp argp = {
+	// 	.options = opts,
+	// 	.parser = parse_arg,
+	// 	.doc = argp_program_doc,
+	// };
 	struct runqlat_bpf *obj;
 	struct tm *tm;
 	char ts[32];
@@ -193,18 +193,25 @@ int main(int argc, char **argv)
 	int idx, cg_map_fd;
 	int cgfd = -1;
 
-	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
-	if (err)
-		return err;
-
+	// err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
+	// if (err)
+	// 	return err;
+    if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        print_usage();
+        return 0;
+    }
+    if (argc == 3) {
+        env.interval = atoi(argv[1]);
+        env.times = atoi(argv[2]);
+    } else if (argc == 2) {
+        env.interval = atoi(argv[1]);
+        env.times = 99999999;
+    }
 	if ((env.per_thread && (env.per_process || env.per_pidns)) ||
 		(env.per_process && env.per_pidns)) {
 		fprintf(stderr, "pidnss, pids, tids cann't be used together.\n");
 		return 1;
 	}
-
-	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
-	libbpf_set_print(libbpf_print_fn);
 
 	obj = runqlat_bpf__open();
 	if (!obj) {
@@ -258,8 +265,6 @@ int main(int argc, char **argv)
 	}
 
 	printf("Tracing run queue latency... Hit Ctrl-C to end.\n");
-
-	signal(SIGINT, sig_handler);
 
 	/* main: poll */
 	while (1) {

@@ -63,7 +63,7 @@ main(int argc, char **argv)
     struct bpf_buffer *rb = NULL;
     struct bootstrap_bpf *skel;
     int err;
-    if (argc > 3) {
+    if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         print_usage();
         return 0;
     }

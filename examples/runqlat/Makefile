@@ -57,4 +57,10 @@ WASI_CLANG = /opt/wasi-sdk/bin/clang
 WASI_CFLAGS = -O2 --sysroot=/opt/wasi-sdk/share/wasi-sysroot -Wl,--allow-undefined
 
 $(APP).wasm: $(APP).c $(APP).skel.h
-	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $<
+	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $< trace_helpers.c
+
+# install emadk
+emsdk:
+	git clone https://github.com/emscripten-core/emsdk.git
+	cd emsdk && ./emsdk install latest && ./emsdk activate latest
+	source ./emsdk_env.sh
