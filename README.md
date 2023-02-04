@@ -5,78 +5,152 @@
 
 ## How it works
 
-The library use the `bpf-loader` library to load `eBPF` program from a `WASM` module, you can write a WASM module to operate the eBPF program or process the data in user space `WASM` runtime. The idea is simple:
+For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).
 
-1. compile the kernel eBPF code skeleton to the `JSON` format with `eunomia-cc` toolchain
-2. embed the `JSON` data in the `WASM` module, and provide some API for operating the eBPF program skeleton
-3. load the `JSON` data from the `WASM` module and run the eBPF program skeleton with `bpf-loader` library
+## examples
 
-## example: opensnoop
+See the [examples](examples) directory for examples of eBPF programs written in C and compiled to WASM.
 
-- [test/wasm-apps/opensnoop.c](test/wasm-apps/opensnoop.c)
+### C example: Bootstrap
 
-The API demo:
+`bootstrap` is an example of a simple (but realistic) BPF application. It
+tracks process starts (`exec()` family of syscalls, to be precise) and exits
+and emits data about filename, PID and parent PID, as well as exit status and
+duration of the process life. With `-d <min-duration-ms>` you can specify
+minimum duration of the process to log. In such mode process start
+(technically, `exec()`) events are not output (see example output below).
+
+`bootstrap` was created in the similar spirit as
+[libbpf-tools](https://github.com/iovisor/bcc/tree/master/libbpf-tools) from
+BCC package, but is designed to be more stand-alone and with simpler Makefile
+to simplify adoption to user's particular needs. It demonstrates the use of
+typical BPF features:
+
+- cooperating BPF programs (tracepoint handlers for process `exec` and `exit`
+    events, in this particular case);
+- BPF map for maintaining the state;
+- BPF ring buffer for sending data to user-space;
+- global variables for application behavior parameterization.
+- it utilizes BPF CO-RE and vmlinux.h to read extra process information from
+    kernel's `struct task_struct`.
+
+Here's an example output:
+
+```console
+$ sudo sudo ./wasm-bpf bootstrap.wasm -h
+BPF bootstrap demo application.
+
+It traces process start and exits and shows associated 
+information (filename, process duration, PID and PPID, etc).
+
+USAGE: ./bootstrap [-d <min-duration-ms>] -v
+$ sudo ./wasm-bpf bootstrap.wasm
+TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
+18:57:58 EXEC  sed              74911   74910   /usr/bin/sed
+18:57:58 EXIT  sed              74911   74910   [0] (2ms)
+18:57:58 EXIT  cat              74912   74910   [0] (0ms)
+18:57:58 EXEC  cat              74913   74910   /usr/bin/cat
+18:57:59 EXIT  cat              74913   74910   [0] (0ms)
+18:57:59 EXEC  cat              74914   74910   /usr/bin/cat
+18:57:59 EXIT  cat              74914   74910   [0] (0ms)
+18:57:59 EXEC  cat              74915   74910   /usr/bin/cat
+18:57:59 EXIT  cat              74915   74910   [0] (1ms)
+18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
+```
+
+The original c code is from [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+
+### C example: runqlat
+
+This program summarizes scheduler run queue latency as a histogram, showing
+how long tasks spent waiting their turn to run on-CPU.
+
+This program summarizes scheduler run queue latency as a histogram, showing
+how long tasks spent waiting their turn to run on-CPU.
+
+```console
+$ sudo ./wasm-bpf runqlat.wasm -h
+Summarize run queue (scheduler) latency as a histogram.
+
+USAGE: runqlat [--help] [interval] [count]
+
+EXAMPLES:
+    runqlat         # summarize run queue latency as a histogram
+    runqlat 1 10    # print 1 second summaries, 10 times
+$ sudo ./wasm-bpf runqlat.wasm 1
+
+Tracing run queue latency... Hit Ctrl-C to end.
+
+     usecs               : count    distribution
+         0 -> 1          : 72       |*****************************           |
+         2 -> 3          : 93       |*************************************   |
+         4 -> 7          : 98       |****************************************|
+         8 -> 15         : 96       |*************************************** |
+        16 -> 31         : 38       |***************                         |
+        32 -> 63         : 4        |*                                       |
+        64 -> 127        : 5        |**                                      |
+       128 -> 255        : 6        |**                                      |
+       256 -> 511        : 0        |                                        |
+       512 -> 1023       : 0        |                                        |
+      1024 -> 2047       : 0        |                                        |
+      2048 -> 4095       : 1        |                                        |
+```
+
+`runqlat` is alse an example of a simple (but realistic) BPF application. It
+would show a more complex example of BPF program, which contains more than
+one file, and directly access the kernel maps from the user space instead of
+polling the kernel ring buffer.
+
+The runtime would use shared memory to access the kernel maps, and the kernel
+would update the maps in the shared memory, so the wasm code can access the
+eBPF maps directly, without any serialization or copy overhead between userspace
+host and Wasm runtime.
+
+You can use the `bpf_map_update_elem` API to update the kernel maps from the user
+space, for example:
 
 ```c
-#include "opensnoop.h"
-
-int
-bpf_main(char *env_json, int str_len)
-{
-    int res = create_bpf(program_data, strlen(program_data));
-    if (res < 0) {
-        printf("create_bpf failed %d", res);
-        return -1;
-    }
-    res = run_bpf(res);
-    if (res < 0) {
-        printf("run_bpf failed %d\n", res);
-        return -1;
-    }
-    res = wait_and_poll_bpf(res);
-    if (res < 0) {
-        printf("wait_and_poll_bpf failed %d\n", res);
-        return -1;
-    }
-    return 0;
-}
-
-int
-process_event(int ctx, char *e, int str_len)
-{
-    printf("%s\n", e);
-    return -1;
-}
+        cg_map_fd = bpf_map__fd(obj->maps.cgroup_map);
+        ....
+        bpf_map_update_elem(cg_map_fd, &idx, &cgfd, BPF_ANY);
 ```
 
-For the kernel code, please refer to [../examples/bpftools/opensnoop](../examples/bpftools/opensnoop).
+So the kernel eBPF can be config by wasm side or recieve the messages from
+userspace wasm runtime when it is running.
 
-### build the WASM module. 
-```console
-$ make /opt/wasi-sdk    # install WASI SDK
-$ cd ./test/wasm-apps/ && make && cd -
+## build the runtime
+
+The dependencies are libbpf and wasm-micro-runtime only, they are
+registered as git submodules.
+
+```sh
+git submodule update --init --recursive
 ```
 
-> To install the latest WASI SDK, you can download the latest [wasi-sdk](https://github.com/CraneStation/wasi-sdk/releases) release and extract the archive to default path `/opt/wasi-sdk`.
+## Install Dependencies
 
-You will get a `opensnoop.wasm` file in folder `test\wasm-apps`, which contains the pre-compiled kernel eBPF code and user-space `WASM` code.
+You will need `clang`, `libelf` and `zlib` to build the examples,
+package names may vary across distros.
 
-### run eBPF from WASM module
+On Ubuntu/Debian, you need:
 
-```console
-$ cd wasm-runtime
-$ mkdir build && cd build
-$ cmake -Dewasm_BUILD_EXECUTABLE=ON -DCMAKE_BUILD_TYPE=Release .. && make	# generate ewasm loader
-$ sudo ./bin/Release/ewasm ../test/wasm-apps/opensnoop.wasm
-
-{"pid":1509,"uid":0,"ret":11,"flags":0,"comm":"YDService","fname":"/proc/self/stat"}
-{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/home/ubuntu/.zsh_history"}
-{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/proc/565169/cmdline"}
-{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/proc/565170/cmdline"}
+```shell
+apt install clang libelf1 libelf-dev zlib1g-dev
 ```
 
-## compile
+On CentOS/Fedora, you need:
+
+```shell
+dnf install clang elfutils-libelf elfutils-libelf-devel zlib-devel
+```
+
+Run `make` to build the examples, which will be placed in the `build`
+ directory. `cmake` is required to build the runtime.
 
 ```sh
 make build
 ```
+
+## LICENSE
+
+MIT

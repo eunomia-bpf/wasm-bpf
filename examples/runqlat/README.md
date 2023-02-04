@@ -46,40 +46,7 @@ would show a more complex example of BPF program, which contains more than
 one file, and directly access the kernel maps from the user space instead of
 polling the kernel ring buffer.
 
-`bootstrap` is intended to be the starting point for your own BPF application,
-with things like BPF CO-RE and vmlinux.h, consuming BPF ring buffer data,
-command line arguments parsing, graceful Ctrl-C handling, etc. all taken care
-of for you, which are crucial but mundane tasks that are no fun, but necessary
-to be able to do anything useful. Just copy/paste and do simple renaming to get
-yourself started.
-
-Here's an example output in minimum process duration mode:
-
-```console
-$ sudo sudo ./wasm-bpf bootstrap.wasm -h
-BPF bootstrap demo application.
-
-It traces process start and exits and shows associated 
-information (filename, process duration, PID and PPID, etc).
-
-USAGE: ./bootstrap [-d <min-duration-ms>] -v
-$ sudo ./wasm-bpf bootstrap.wasm
-TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
-18:57:58 EXEC  sed              74911   74910   /usr/bin/sed
-18:57:58 EXIT  sed              74911   74910   [0] (2ms)
-18:57:58 EXIT  cat              74912   74910   [0] (0ms)
-18:57:58 EXEC  cat              74913   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74913   74910   [0] (0ms)
-18:57:59 EXEC  cat              74914   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74914   74910   [0] (0ms)
-18:57:59 EXEC  cat              74915   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74915   74910   [0] (1ms)
-18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
-```
-
-The original c code is from [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
-
-## the compile process of the bootstrap.wasm
+## the compile process of the runqlat.wasm
 
 We can provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap) development. Just run `make` to build the wasm binary:
 
@@ -122,4 +89,4 @@ You can use the `bpf_map_update_elem` API to update the kernel maps from the use
         }
 ```
 
-So the kernel eBPF can be config by wasm side or recieve the data from userspace wasm runtime when it is running.
+So the kernel eBPF can be config by wasm side or recieve the messages from userspace wasm runtime when it is running.

@@ -30,7 +30,7 @@ of for you, which are crucial but mundane tasks that are no fun, but necessary
 to be able to do anything useful. Just copy/paste and do simple renaming to get
 yourself started.
 
-Here's an example output in minimum process duration mode:
+Here's an example output:
 
 ```console
 $ sudo sudo ./wasm-bpf bootstrap.wasm -h
