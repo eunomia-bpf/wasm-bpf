@@ -15,8 +15,6 @@ project(
 #
 
 include(cmake/StandardSettings.cmake)
-include(cmake/StaticAnalyzers.cmake)
-include(cmake/Utils.cmake)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
@@ -149,12 +147,6 @@ set(CMAKE_CXX_STANDARD 17)
 verbose_message("Applied compiler warnings. Using standard ${CMAKE_CXX_STANDARD}.\n")
 
 #
-# Enable Doxygen
-#
-
-include(cmake/Doxygen.cmake)
-
-#
 # Model project dependencies
 #
 
@@ -174,7 +166,7 @@ verbose_message("Successfully added all dependencies and linked against them.")
 
 
 
-set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../third_party)
+set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 # Tell cmake where to find BpfObject module
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -205,7 +197,7 @@ ExternalProject_Add(libbpf
 
 # Set BpfObject input parameters -- note this is usually not necessary unless
 # you're in a highly vendored environment (like libbpf-bootstrap)
-set(BPFOBJECT_BPFTOOL_EXE ${THIRD_PARTY_DIR}/tools/bpftool)
+set(BPFOBJECT_BPFTOOL_EXE ${THIRD_PARTY_DIR}/bpftool/src/bpftool)
 set(BPFOBJECT_VMLINUX_H ${THIRD_PARTY_DIR}/vmlinux/vmlinux.h)
 set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
 set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
@@ -219,7 +211,7 @@ set (WAMR_BUILD_INTERP 1)
 set (WAMR_BUILD_AOT 1)
 set (WAMR_BUILD_JIT 0)
 set (WAMR_BUILD_LIBC_BUILTIN 1)
-set (WAMR_ROOT_DIR ../third_party/wasm-micro-runtime)
+set (WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm-micro-runtime)
 
 if (NOT MSVC)
   set (WAMR_BUILD_LIBC_WASI 1)

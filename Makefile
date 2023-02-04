@@ -60,16 +60,6 @@ coverage: ## check code coverage quickly GCC
 	cd build/ && ctest -C Release -VV
 	cd .. && (bash -c "find . -type f -name '*.gcno' -exec gcov -pb {} +" || true)
 
-docs: ## generate Doxygen HTML documentation, including API docs
-	rm -rf docs/
-	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Deunomia_ENABLE_DOXYGEN=1 -Deunomia_ENABLE_UNIT_TESTING=0 -Deunomia_USE_GTEST=0 -DCMAKE_BUILD_TYPE=Release
-	cmake --build build --target doxygen-docs
-	mkdir docs/html/doc/
-	cp -r doc/imgs docs/html/
-	cp -r doc/imgs docs/html/doc/
-	$(BROWSER) docs/html/index.html
-
 install: ## install the package to the `INSTALL_LOCATION`
 	rm -rf build/
 	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DCMAKE_BUILD_TYPE=Release  -Deunomia_ENABLE_UNIT_TESTING=0 -Deunomia_USE_GTEST=0
