@@ -71,7 +71,7 @@ foreach(file ${test_sources})
   target_link_libraries(
     ${test_name}_Tests
     PUBLIC
-      ${${CMAKE_PROJECT_NAME}_TEST_LIB} -lbpf vmlib
+      ${${CMAKE_PROJECT_NAME}_TEST_LIB} vmlib  ${LIBBPF_LIBRARIES} -lelf -lz
     )
     message("Unknown testing library. Please setup your desired unit testing library by using `target_link_libraries`.")
   endif()
