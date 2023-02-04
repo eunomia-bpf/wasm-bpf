@@ -178,7 +178,10 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
         return 0;
     }
     // TODO: attach bpf program by sec name
-    return -1;
+    link =
+        bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
+    if (!link) return libbpf_get_error(link);
+    return 0;
 }
 
 int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,

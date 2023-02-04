@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     std::vector<uint8_t> wasm_module((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
     char error_buf[128];
-    int opt;
+    int exit_code = 0;
     char *wasm_path = NULL;
 
     wasm_module_t module = NULL;
@@ -128,12 +128,15 @@ int main(int argc, char *argv[]) {
                wasm_runtime_get_exception(module_inst));
         return -1;
     }
+    exit_code = wasm_runtime_get_wasi_exit_code(module_inst);
     if (exec_env) wasm_runtime_destroy_exec_env(exec_env);
     if (module_inst) {
-        if (wasm_buffer) wasm_runtime_module_free(module_inst, wasm_buffer);
+        if (wasm_buffer) {
+            wasm_runtime_module_free(module_inst, wasm_buffer);
+        }
         wasm_runtime_deinstantiate(module_inst);
     }
     if (module) wasm_runtime_unload(module);
     wasm_runtime_destroy();
-    return 0;
+    return exit_code;
 }
