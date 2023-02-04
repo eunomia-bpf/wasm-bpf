@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <vector>
 
 #include "wasm_export.h"
 
@@ -21,8 +22,10 @@ extern "C" {
 struct bpf_buffer;
 struct bpf_map;
 struct bpf_object;
+struct bpf_link;
 void bpf_buffer__free(struct bpf_buffer *);
 void bpf_object__close(struct bpf_object *object);
+int bpf_link__destroy(bpf_link *link);
 }
 
 void init_libbpf(void);
@@ -43,14 +46,13 @@ struct wasm_bpf_program {
 };
 
 enum bpf_map_cmd {
-    // BPF_MAP_CREATE,
     _BPF_MAP_LOOKUP_ELEM = 1,
     _BPF_MAP_UPDATE_ELEM,
     _BPF_MAP_DELETE_ELEM,
     _BPF_MAP_GET_NEXT_KEY,
 };
 
-int bpf_map_operate(int fd, enum bpf_map_cmd cmd, void *key, void *value,
-                    void *next_key, uint64_t flags);
+int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
+                    uint64_t flags);
 
 #endif

@@ -237,7 +237,7 @@ bool probe_tp_btf(const char *name)
 	// fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", insns, insn_cnt, &opts);
 	// if (fd >= 0)
 	// 	close(fd);
-	return true;
+	return false;
 }
 
 bool probe_ringbuf()

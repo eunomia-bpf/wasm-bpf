@@ -258,9 +258,9 @@ include (${SHARED_DIR}/utils/uncommon/shared_uncommon.cmake)
 set_target_properties (${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if (APPLE)
-  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread -lbpf)
+  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread  ${LIBBPF_LIBRARIES} -lelf -lz)
 else ()
-  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread -lrt -lbpf)
+  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread -lrt  ${LIBBPF_LIBRARIES} -lelf -lz)
 endif ()
 
 # Allow usage of header files in the `src` directory, but only for utilities

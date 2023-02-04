@@ -40,7 +40,7 @@ install-deps: ## install deps
 	apt-get install libcurl4-openssl-dev libelf-dev clang llvm -y ## libgtest-dev
 
 test: ## run tests quickly with ctest
-	rm -rf build/
+	sudo rm -rf build/
 	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1  -Dwasm-bpf_ENABLE_ASAN=1 -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
 	cmake --build build
 	cd build/ && sudo ctest -VV
@@ -62,7 +62,7 @@ coverage: ## check code coverage quickly GCC
 
 install: ## install the package to the `INSTALL_LOCATION`
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DCMAKE_BUILD_TYPE=Release  -Dwasm-bpf_ENABLE_UNIT_TESTING=0 -Dwasm-bpf_USE_GTEST=0
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DCMAKE_BUILD_TYPE=Release  -Dwasm-bpf_ENABLE_UNIT_TESTING=0
 	cmake --build build --config Release
 	cmake --build build --target install --config Release
 
