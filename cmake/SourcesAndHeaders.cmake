@@ -8,6 +8,7 @@ set(exe_sources
 )
 
 set(headers
+    include/
 )
 
 EXECUTE_PROCESS( COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE )
@@ -22,5 +23,5 @@ set(skel_includes
 )
 
 set(test_sources
-    src/example_test.cpp
+    src/bpf_api_test.cpp
 )
