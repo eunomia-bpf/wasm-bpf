@@ -68,6 +68,14 @@ struct bpf_object_skeleton {
     int prog_skel_sz; /* sizeof(struct bpf_prog_skeleton) */
     struct bpf_prog_skeleton *progs;
 };
+/* handle errno-based (e.g., syscall or libc) errors according to libbpf's
+ * strict mode settings
+ */
+static inline int libbpf_err_errno(int ret)
+{
+	/* errno is already assumed to be set on error */
+	return ret < 0 ? -errno : ret;
+}
 
 static int
 bpf_map__fd(const struct bpf_map *map)

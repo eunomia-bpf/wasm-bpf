@@ -41,7 +41,7 @@ install-deps: ## install deps
 
 test: ## run tests quickly with ctest
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1  -Dwasm-bpf_ENABLE_ASAN=1 -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
 	cmake --build build
 	cd build/ && sudo ctest -VV
 
@@ -55,14 +55,14 @@ test-wasm: /opt/wasi-sdk
 
 coverage: ## check code coverage quickly GCC
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Deunomia_ENABLE_CODE_COVERAGE=1
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
 	cmake --build build --config Release
 	cd build/ && ctest -C Release -VV
 	cd .. && (bash -c "find . -type f -name '*.gcno' -exec gcov -pb {} +" || true)
 
 install: ## install the package to the `INSTALL_LOCATION`
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DCMAKE_BUILD_TYPE=Release  -Deunomia_ENABLE_UNIT_TESTING=0 -Deunomia_USE_GTEST=0
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -DCMAKE_BUILD_TYPE=Release  -Dwasm-bpf_ENABLE_UNIT_TESTING=0 -Dwasm-bpf_USE_GTEST=0
 	cmake --build build --config Release
 	cmake --build build --target install --config Release
 

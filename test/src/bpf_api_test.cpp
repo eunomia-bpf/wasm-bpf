@@ -16,5 +16,12 @@ int main(int argc, char **argv)
   std::ifstream runqlat("test/asserts/runqlat.o");
   std::vector<char> runqlat_str((std::istreambuf_iterator<char>(runqlat)),
                           std::istreambuf_iterator<char>());
+  int res = program->load_bpf_object(runqlat_str.data(), runqlat_str.size());
+  if (res < 0) {
+    delete program;
+    return 0;
+  }
+  res = program->attach_bpf_program("runqlat", NULL);
+
   return 0;
 }
