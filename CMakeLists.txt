@@ -61,6 +61,7 @@ include(cmake/SourcesAndHeaders.cmake)
 
 if(${PROJECT_NAME}_BUILD_EXECUTABLE)
   add_executable(${PROJECT_NAME} ${exe_sources})
+  add_library(${PROJECT_NAME}_LIB ${headers} ${sources})
 
   if(${PROJECT_NAME}_VERBOSE_OUTPUT)
     verbose_message("Found the following sources:")
@@ -70,7 +71,7 @@ if(${PROJECT_NAME}_BUILD_EXECUTABLE)
   endif()
 
   if(${PROJECT_NAME}_ENABLE_UNIT_TESTING)
-    add_library(${PROJECT_NAME}_LIB ${headers} ${sources})
+    # add_library(${PROJECT_NAME}_LIB ${headers} ${sources})
 
     if(${PROJECT_NAME}_VERBOSE_OUTPUT)
       verbose_message("Found the following headers:")
@@ -173,7 +174,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 if (DEFINED LIBBPF_SOURCE_DIR)
   verbose_message("Use libbpf source from ${LIBBPF_SOURCE_DIR}")
 else()
-  set(LIBBPF_SOURCE_DIR ${THIRD_PARTY_DIR}/bpftool/libbpf/src)
+set(LIBBPF_SOURCE_DIR ${THIRD_PARTY_DIR}/bpftool/libbpf/src)
 endif()
 
 # Build vendored libbpf
@@ -205,6 +206,27 @@ find_package(BpfObject REQUIRED)
 
 add_dependencies(${PROJECT_NAME} libbpf-build)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
+
+if(${PROJECT_NAME}_ENABLE_UNIT_TESTING)
+  target_link_libraries(
+    ${PROJECT_NAME}_LIB
+    PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz
+  )
+endif()
+
+# For Windows, it is necessary to link with the MultiThreaded library.
+# Depending on how the rest of the project's dependencies are linked, it might be necessary
+# to change the line to statically link with the library.
+#
+# This is done as follows:
+#
+# set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+#
+# On Linux and Mac this variable is ignored. If any issues rise from it, try commenting it out
+# and letting CMake decide how to link with it.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+verbose_message("Successfully added all dependencies and linked against them.")
 
 set (WAMR_BUILD_PLATFORM "linux")
 set (WAMR_BUILD_INTERP 1)
@@ -258,10 +280,18 @@ include (${SHARED_DIR}/utils/uncommon/shared_uncommon.cmake)
 set_target_properties (${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if (APPLE)
-  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread  ${LIBBPF_LIBRARIES} -lelf -lz)
+  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread)
 else ()
-  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread -lrt  ${LIBBPF_LIBRARIES} -lelf -lz)
+  target_link_libraries (${PROJECT_NAME} PRIVATE vmlib -lm -ldl -lpthread -lrt)
 endif ()
+
+#
+# Set the build/user include directories
+#
+
+include_directories(INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/include/uapi)
+include_directories(SYSTEM INTERFACE ${third_party_headers})
+include_directories(SYSTEM INTERFACE ${LIBBPF_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/bpftools)
 
 # Allow usage of header files in the `src` directory, but only for utilities
 if(${PROJECT_NAME}_BUILD_HEADERS_ONLY)
@@ -310,7 +340,7 @@ verbose_message("Project is now aliased as ${PROJECT_NAME}::${PROJECT_NAME}.\n")
 # Format the project using the `clang-format` target (i.e: cmake --build build --target clang-format)
 #
 
-# add_clang_format_target()
+add_clang_format_target()
 
 #
 # Install library for easy downstream inclusion
