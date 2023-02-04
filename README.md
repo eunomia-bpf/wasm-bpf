@@ -1,10 +1,11 @@
 # wasm-bpf: Wasm runtime for eBPF
 
-[![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/c-cpp/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
+[![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/Ubuntu/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
+[![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf)
 
 A WebAssembly eBPF library and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
 
-- `General purpose`: provide the most ability from eBPF to Wasm, `polling` from the ring buffer or perf buffer, directly accessing the `maps` from both the Wasm side and eBPF side, `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`, etc.
+- `General purpose`: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
 - `high performance`: No `serialization` overhead for comlex data types, use `shared memory` to avoid copy overhead between host and Wasm.
 - `Easy to use`: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF `skeleton` headers and compile to Wasm.
 - `Ultralightweight`: the runtime has only `300+` lines of code, only `1.5 MB` in size. Compiled Wasm module would be only `~90K`.
@@ -167,6 +168,14 @@ make build
 
 You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
 to build and run the examples.
+
+## Wasm-bpf overview
+
+![wasi-bpf](test/asserts/wasm-bpf-no-bcc.png)
+
+A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
+
+We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
 
 ## LICENSE
 
