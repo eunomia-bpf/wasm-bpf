@@ -5,10 +5,10 @@
 
 A WebAssembly eBPF library and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
 
-- `General purpose`: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
-- `high performance`: No `serialization` overhead for comlex data types, use `shared memory` to avoid copy overhead between host and Wasm.
-- `Easy to use`: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF `skeleton` headers and compile to Wasm.
-- `Ultralightweight`: the runtime has only `300+` lines of code, only `1.5 MB` in size. Compiled Wasm module would be only `~90K`.
+- `General purpose`: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
+- `High performance`: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
+- `Easy to use`: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF `skeleton` headers and `type` definitions for bindings.
+- `Ultralightweight`: the runtime has only `300+` lines of code, binary only `1.5 MB` in size. Compiled Wasm module would be only `~90K`.
 
 ## How it works
 
