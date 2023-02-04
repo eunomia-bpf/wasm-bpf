@@ -153,29 +153,32 @@ void bpf_buffer__free(struct bpf_buffer *buffer) {
     free(buffer);
 }
 
-#ifndef offsetofend
-#define offsetofend(TYPE, FIELD) \
-    (offsetof(TYPE, FIELD) + sizeof(((TYPE *)0)->FIELD))
-#endif
-
 int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
     return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
 
 int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
+    if (!object) {
+        return libbpf_get_error(object);
+    }
     obj.reset(object);
     return bpf_object__load(object);
 }
 
 int wasm_bpf_program::attach_bpf_program(const char *name,
                                          const char *attach_target) {
+    struct bpf_link *link;
     if (!attach_target) {
-        bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
+        link = bpf_program__attach(
+            bpf_object__find_program_by_name(obj.get(), name));
+        if (!link) {
+            return libbpf_get_error(link);
+        }
+        return 0;
     }
     // TODO: attach bpf program by sec name
-    bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
-    return 0;
+    return -1;
 }
 
 int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
@@ -203,19 +206,19 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     return 0;
 }
 
-int bpf_map_operate(int fd, enum bpf_map_cmd cmd, void *key, void *value,
-                    void *next_key, uint64_t flags) {
-    if (cmd < _BPF_MAP_LOOKUP_ELEM || cmd > _BPF_MAP_GET_NEXT_KEY) return -1;
-    const size_t attr_sz = offsetofend(union bpf_attr, next_key);
-    union bpf_attr attr;
-    int ret;
-
-    memset(&attr, 0, attr_sz);
-    attr.map_fd = (uint32_t)fd;
-    attr.key = (uint64_t)key;
-    attr.next_key = (uint64_t)next_key;
-    attr.value = (uint64_t)value;
-    attr.flags = flags;
-    ret = (int)syscall(__NR_bpf, cmd, attr, attr_sz);
-    return ret < 0 ? -errno : ret;
+int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
+                    uint64_t flags) {
+    switch (cmd) {
+        case BPF_MAP_GET_NEXT_KEY:
+            return bpf_map_get_next_key(fd, key, next_key);
+        case BPF_MAP_LOOKUP_ELEM:
+            return bpf_map_lookup_elem_flags(fd, key, value, flags);
+        case BPF_MAP_UPDATE_ELEM:
+            return bpf_map_update_elem(fd, key, value, flags);
+        case BPF_MAP_DELETE_ELEM:
+            return bpf_map_delete_elem_flags(fd, key, flags);
+        default:
+            return -EINVAL;
+    }
+    return -EINVAL;
 }
