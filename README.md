@@ -1,75 +1,82 @@
-# libbpf-wasm
+# ewasm: a dynamically loading library for eBPF with WASM
 
-libbpf-wasm is a library that allows you to compile and run libbpf eBPF programs in the WebAssembly virtual machine.
+- build the user space and kernel space eBPF as a WASM module
+- load the WASM module dynamically and run with bpf-loader
 
-It should be used with [eunomia-bpf](https://https://github.com/eunomia-bpf/eunomia-bpf) library.
+## How it works
 
-See the eunomia-bpf example code in [sigsnoop](https://github.com/eunomia-bpf/eunomia-bpf/tree/master/examples/bpftools/sigsnoop)
+The library use the `bpf-loader` library to load `eBPF` program from a `WASM` module, you can write a WASM module to operate the eBPF program or process the data in user space `WASM` runtime. The idea is simple:
 
-## Compile and Run
+1. compile the kernel eBPF code skeleton to the `JSON` format with `eunomia-cc` toolchain
+2. embed the `JSON` data in the `WASM` module, and provide some API for operating the eBPF program skeleton
+3. load the `JSON` data from the `WASM` module and run the eBPF program skeleton with `bpf-loader` library
 
-Use [sigsnoop](https://github.com/eunomia-bpf/eunomia-bpf/tree/master/examples/bpftools/sigsnoop) as an example. You need to clone the eunomia-bpf repo first.
+## example: opensnoop
 
-Compile:
+- [test/wasm-apps/opensnoop.c](test/wasm-apps/opensnoop.c)
 
-```shell
-cd examples/bpftools/sigsnoop
-docker run -it -v `pwd`/:/src/ yunwei37/ebpm:latest
+The API demo:
+
+```c
+#include "opensnoop.h"
+
+int
+bpf_main(char *env_json, int str_len)
+{
+    int res = create_bpf(program_data, strlen(program_data));
+    if (res < 0) {
+        printf("create_bpf failed %d", res);
+        return -1;
+    }
+    res = run_bpf(res);
+    if (res < 0) {
+        printf("run_bpf failed %d\n", res);
+        return -1;
+    }
+    res = wait_and_poll_bpf(res);
+    if (res < 0) {
+        printf("wait_and_poll_bpf failed %d\n", res);
+        return -1;
+    }
+    return 0;
+}
+
+int
+process_event(int ctx, char *e, int str_len)
+{
+    printf("%s\n", e);
+    return -1;
+}
 ```
 
-Or compile with `ecc`:
+For the kernel code, please refer to [../examples/bpftools/opensnoop](../examples/bpftools/opensnoop).
+
+### build the WASM module. 
+```console
+$ make /opt/wasi-sdk    # install WASI SDK
+$ cd ./test/wasm-apps/ && make && cd -
+```
+
+> To install the latest WASI SDK, you can download the latest [wasi-sdk](https://github.com/CraneStation/wasi-sdk/releases) release and extract the archive to default path `/opt/wasi-sdk`.
+
+You will get a `opensnoop.wasm` file in folder `test\wasm-apps`, which contains the pre-compiled kernel eBPF code and user-space `WASM` code.
+
+### run eBPF from WASM module
 
 ```console
-$ cd examples/bpftools/sigsnoop
-$ ecc sigsnoop.bpf.c sigsnoop.h
-Compiling bpf object...
-Generating export types...
-Packing ebpf object and config into package.json...
+$ cd wasm-runtime
+$ mkdir build && cd build
+$ cmake -Dewasm_BUILD_EXECUTABLE=ON -DCMAKE_BUILD_TYPE=Release .. && make	# generate ewasm loader
+$ sudo ./bin/Release/ewasm ../test/wasm-apps/opensnoop.wasm
+
+{"pid":1509,"uid":0,"ret":11,"flags":0,"comm":"YDService","fname":"/proc/self/stat"}
+{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/home/ubuntu/.zsh_history"}
+{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/proc/565169/cmdline"}
+{"pid":1509,"uid":0,"ret":3,"flags":0,"comm":"YDService","fname":"/proc/565170/cmdline"}
 ```
 
-Generate WASM skel:
+## compile
 
-```shell
-docker run -it -v `pwd`/:/src/ yunwei37/ebpm:latest gen-wasm-skel
+```sh
+make build
 ```
-
-> The skel is generated and commit, so you don't need to generate it again.
-> skel includes:
->
-> - eunomia-include: include headers for WASM
-> - app.c: the WASM app. all library is header only.
-
-Build WASM module
-
-```shell
-docker run -it -v `pwd`/:/src/ yunwei37/ebpm:latest build-wasm
-```
-
-Run:
-
-```console
-$ sudo ./ecli run app.wasm -h
-Usage: sigsnoop [-h] [-x] [-k] [-n] [-p PID] [-s SIGNAL]
-Trace standard and real-time signals.
-
-
-    -h, --help  show this help message and exit
-    -x, --failed  failed signals only
-    -k, --killed  kill only
-    -p, --pid=<int>  target pid
-    -s, --signal=<int>  target signal
-
-$ sudo ./ecli run app.wasm                                                                       
-running and waiting for the ebpf events from perf event...
-{"pid":185539,"tpid":185538,"sig":17,"ret":0,"comm":"cat","sig_name":"SIGCHLD"}
-{"pid":185540,"tpid":185538,"sig":17,"ret":0,"comm":"grep","sig_name":"SIGCHLD"}
-
-$ sudo ./ecli run app.wasm -p 1641
-running and waiting for the ebpf events from perf event...
-{"pid":1641,"tpid":2368,"sig":23,"ret":0,"comm":"YDLive","sig_name":"SIGURG"}
-{"pid":1641,"tpid":2368,"sig":23,"ret":0,"comm":"YDLive","sig_name":"SIGURG"}
-```
-
-## License
-
-MIT LICENSE
