@@ -1,7 +1,11 @@
-# ewasm: a dynamically loading library for eBPF with WASM
+# wasm-bpf: Wasm runtime for eBPF
 
-- build the user space and kernel space eBPF as a WASM module
-- load the WASM module dynamically and run with bpf-loader
+[![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/c-cpp/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
+
+A WebAssembly eBPF library and runtime powered by [CO-RE]() libbpf and WAMR.
+
+- `Ultralightweight`: the runtime has only `300+` lines of code, only `1.5 MB` in size.
+- 
 
 ## How it works
 
@@ -150,6 +154,9 @@ Run `make` to build the examples, which will be placed in the `build`
 ```sh
 make build
 ```
+
+You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
+to build and run the examples.
 
 ## LICENSE
 
