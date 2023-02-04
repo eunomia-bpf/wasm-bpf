@@ -2,12 +2,21 @@
 
 [![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/c-cpp/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
 
-A WebAssembly eBPF library and runtime powered by [CO-RE]() libbpf and WAMR.
+A WebAssembly eBPF library and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
 
-- `Ultralightweight`: the runtime has only `300+` lines of code, only `1.5 MB` in size.
-- 
+- `General purpose`: provide the most ability from the eBPF side, for example, polling from the ring buffer or perf buffer, accessing the map from both the Wasm side and eBPF side, loading, attaching and detaching BPF programs, etc. It can support a lare number of eBPF program types and maps, covering the use cases of most eBPF programs from tracing, networking, security, etc.
+- `Easy to use`: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF `skeleton` headers and compile to Wasm.
+- `Ultralightweight`: the runtime has only `300+` lines of code, only `1.5 MB` in size. Compiled Wasm module would be only `~90K`.
 
 ## How it works
+
+The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
+
+- host side: see `src` and `include` directories, which would be a runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+- wasm side:
+  - a [`libbpf-wasm`](wasm-include/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
+  - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers.
+  - More languages support(`Rust`, `Go`, etc) is on the way.
 
 For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).
 

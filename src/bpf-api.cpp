@@ -7,7 +7,6 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 using namespace std;
 extern "C" {
