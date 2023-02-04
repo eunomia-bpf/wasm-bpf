@@ -74,7 +74,7 @@ wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
 int
 main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <wasm_object_file> <wasm_args>"
                   << std::endl;
         return -1;
@@ -133,7 +133,7 @@ main(int argc, char *argv[])
         return -1;
     }
     wasm_runtime_set_module_inst(exec_env, module_inst);
-    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv, argc);
+    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv + 1, argc - 1);
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The generate_float wasm function is not found.\n");
         return -1;

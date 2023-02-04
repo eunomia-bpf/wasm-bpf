@@ -70,11 +70,8 @@ main(int argc, char **argv)
     else if ((strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--duration") == 0)
              && argc == 3) {
         env.min_duration_ms = strtol(argv[2], NULL, 10);
-        if (errno || env.min_duration_ms <= 0) {
-            fprintf(stderr, "Invalid duration: %s\n", argv[2]);
-            print_usage();
-        }
     }
+    
     /* Load and verify BPF application */
     skel = bootstrap_bpf__open();
     if (!skel) {

@@ -447,7 +447,7 @@ static int
 bpf_map_get_next_key(int fd, const void *key, void *next_key)
 {
     return wasm_bpf_map_operate(fd, BPF_MAP_GET_NEXT_KEY, (void *)key, NULL,
-                                (void *)next_key, 0);
+                                next_key, 0);
 }
 
 #endif // _LIBBPF_WASM_H
