@@ -206,7 +206,6 @@ int main(int argc, char **argv)
     } else if (argc == 2) {
         env.interval = atoi(argv[1]);
     }
-    env.interval = 1;
 	if ((env.per_thread && (env.per_process || env.per_pidns)) ||
 		(env.per_process && env.per_pidns)) {
 		fprintf(stderr, "pidnss, pids, tids cann't be used together.\n");

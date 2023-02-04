@@ -71,7 +71,7 @@ main(int argc, char **argv)
              && argc == 3) {
         env.min_duration_ms = strtol(argv[2], NULL, 10);
     }
-    
+
     /* Load and verify BPF application */
     skel = bootstrap_bpf__open();
     if (!skel) {

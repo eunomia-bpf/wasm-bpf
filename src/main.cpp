@@ -3,25 +3,22 @@
  * Copyright (c) 2022, eunomia-bpf org
  * All rights reserved.
  */
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <vector>
-#include <stdio.h>
-#include <unistd.h>
-#include <bpf/libbpf.h>
-#include <bpf/bpf.h>
-#include <unistd.h>
-#include <sys/syscall.h>
+
 #include "bpf-api.h"
 
 extern "C" {
-uint64_t
-wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf, int obj_buf_sz)
-{
-    if (obj_buf_sz <= 0)
-        return 0;
+uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
+                              int obj_buf_sz) {
+    if (obj_buf_sz <= 0) return 0;
     wasm_bpf_program *program = new wasm_bpf_program();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
     if (res < 0) {
@@ -31,52 +28,39 @@ wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf, int obj_buf_sz)
     return (uint64_t)program;
 }
 
-int
-wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program)
-{
+int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
     delete ((wasm_bpf_program *)program);
     return 0;
 }
 
-int
-wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program, char *name,
-                        char *attach_target)
-{
+int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
+                            char *name, char *attach_target) {
     return ((wasm_bpf_program *)program)
         ->attach_bpf_program(name, attach_target);
 }
 
-int
-wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
-                     int32_t sample_func, uint32_t ctx, char *data,
-                     int max_size, int timeout_ms)
-{
+int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
+                         int32_t sample_func, uint32_t ctx, char *data,
+                         int max_size, int timeout_ms) {
     return ((wasm_bpf_program *)program)
         ->bpf_buffer_poll(exec_env, fd, sample_func, ctx, data,
                           (size_t)max_size, timeout_ms);
 }
 
-int
-wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
-                        const char *name)
-{
+int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
+                            const char *name) {
     return ((wasm_bpf_program *)program)->bpf_map_fd_by_name(name);
 }
 
-int
-wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
-                     void *value, void *next_key, uint64_t flags)
-{
+int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
+                         void *value, void *next_key, uint64_t flags) {
     return bpf_map_operate(fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
 }
 }
 
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <wasm_object_file> <wasm_args>"
-                  << std::endl;
+        printf("Usage: %s <wasm file> [wasm args]\n", argv[0]);
         return -1;
     }
     std::ifstream file(argv[1]);
@@ -121,6 +105,8 @@ main(int argc, char *argv[])
         printf("Load wasm module failed. error: %s\n", error_buf);
         return -1;
     }
+    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv + 1,
+                               argc - 1);
     module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                            error_buf, sizeof(error_buf));
     if (!module_inst) {
@@ -133,7 +119,6 @@ main(int argc, char *argv[])
         return -1;
     }
     wasm_runtime_set_module_inst(exec_env, module_inst);
-    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv + 1, argc - 1);
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The generate_float wasm function is not found.\n");
         return -1;
@@ -143,15 +128,12 @@ main(int argc, char *argv[])
                wasm_runtime_get_exception(module_inst));
         return -1;
     }
-    if (exec_env)
-        wasm_runtime_destroy_exec_env(exec_env);
+    if (exec_env) wasm_runtime_destroy_exec_env(exec_env);
     if (module_inst) {
-        if (wasm_buffer)
-            wasm_runtime_module_free(module_inst, wasm_buffer);
+        if (wasm_buffer) wasm_runtime_module_free(module_inst, wasm_buffer);
         wasm_runtime_deinstantiate(module_inst);
     }
-    if (module)
-        wasm_runtime_unload(module);
+    if (module) wasm_runtime_unload(module);
     wasm_runtime_destroy();
     return 0;
 }

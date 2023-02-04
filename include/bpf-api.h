@@ -9,8 +9,7 @@
 #ifndef __BPF_WASM_API_H
 #define __BPF_WASM_API_H
 
-#include <stdlib.h>
-#include <limits.h>
+#include <cstdlib>
 #include <memory>
 
 #include "wasm_export.h"
@@ -22,21 +21,16 @@ extern "C" {
 struct bpf_buffer;
 struct bpf_map;
 struct bpf_object;
-void
-bpf_buffer__free(struct bpf_buffer *);
-void
-bpf_object__close(struct bpf_object *object);
+void bpf_buffer__free(struct bpf_buffer *);
+void bpf_object__close(struct bpf_object *object);
 }
 
-void
-init_libbpf(void);
+void init_libbpf(void);
 struct wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
-        nullptr, bpf_object__close
-    };
+        nullptr, bpf_object__close};
     std::unique_ptr<bpf_buffer, void (*)(bpf_buffer *obj)> buffer{
-        nullptr, bpf_buffer__free
-    };
+        nullptr, bpf_buffer__free};
     void *poll_data;
     size_t max_poll_size;
 
@@ -56,8 +50,7 @@ enum bpf_map_cmd {
     _BPF_MAP_GET_NEXT_KEY,
 };
 
-int
-bpf_map_operate(int fd, enum bpf_map_cmd cmd, void *key, void *value,
-                void *next_key, uint64_t flags);
+int bpf_map_operate(int fd, enum bpf_map_cmd cmd, void *key, void *value,
+                    void *next_key, uint64_t flags);
 
 #endif
