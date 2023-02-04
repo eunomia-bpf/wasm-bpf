@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: get submodule
+      run:  git submodule update --init --recursive
+    - name: install deps
+      run: |
+          sudo make install-deps
+    - name: make
+      run: make
+    - name: make test
+      run: make test
