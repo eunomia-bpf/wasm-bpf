@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <fcntl.h>
-// #include "vmlinux.h"
 #include "runqlat.h"
 #include "runqlat.skel.h"
 #include "trace_helpers.h"
@@ -60,84 +59,6 @@ print_usage(void)
     printf("%s\n", argp_program_doc);
 }
 
-// static const struct argp_option opts[] = {
-// 	{ "timestamp", 'T', NULL, 0, "Include timestamp on output" },
-// 	{ "milliseconds", 'm', NULL, 0, "Millisecond histogram" },
-// 	{ "pidnss", OPT_PIDNSS, NULL, 0, "Print a histogram per PID namespace" },
-// 	{ "pids", 'P', NULL, 0, "Print a histogram per process ID" },
-// 	{ "tids", 'L', NULL, 0, "Print a histogram per thread ID" },
-// 	{ "pid", 'p', "PID", 0, "Trace this PID only" },
-// 	{ "verbose", 'v', NULL, 0, "Verbose debug output" },
-// 	{ "cgroup", 'c', "/sys/fs/cgroup/unified", 0, "Trace process in cgroup path"},
-// 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
-// 	{},
-// };
-
-// static error_t parse_arg(int key, char *arg, struct argp_state *state)
-// {
-// 	static int pos_args;
-
-// 	switch (key) {
-// 	case 'h':
-// 		argp_state_help(state, stderr, ARGP_HELP_STD_HELP);
-// 		break;
-// 	case 'v':
-// 		env.verbose = true;
-// 		break;
-// 	case 'm':
-// 		env.milliseconds = true;
-// 		break;
-// 	case 'p':
-// 		errno = 0;
-// 		env.pid = strtol(arg, NULL, 10);
-// 		if (errno) {
-// 			fprintf(stderr, "invalid PID: %s\n", arg);
-// 			argp_usage(state);
-// 		}
-// 		break;
-// 	case 'L':
-// 		env.per_thread = true;
-// 		break;
-// 	case 'P':
-// 		env.per_process = true;
-// 		break;
-// 	case OPT_PIDNSS:
-// 		env.per_pidns = true;
-// 		break;
-// 	case 'T':
-// 		env.timestamp = true;
-// 		break;
-// 	case 'c':
-// 		env.cgroupspath = arg;
-// 		env.cg = true;
-// 		break;
-// 	case ARGP_KEY_ARG:
-// 		errno = 0;
-// 		if (pos_args == 0) {
-// 			env.interval = strtol(arg, NULL, 10);
-// 			if (errno) {
-// 				fprintf(stderr, "invalid internal\n");
-// 				argp_usage(state);
-// 			}
-// 		} else if (pos_args == 1) {
-// 			env.times = strtol(arg, NULL, 10);
-// 			if (errno) {
-// 				fprintf(stderr, "invalid times\n");
-// 				argp_usage(state);
-// 			}
-// 		} else {
-// 			fprintf(stderr,
-// 				"unrecognized positional argument: %s\n", arg);
-// 			argp_usage(state);
-// 		}
-// 		pos_args++;
-// 		break;
-// 	default:
-// 		return ARGP_ERR_UNKNOWN;
-// 	}
-// 	return 0;
-// }
-
 static void sig_handler(int sig)
 {
 	exiting = true;
@@ -180,11 +101,6 @@ static int print_log2_hists(struct bpf_map *hists)
 
 int main(int argc, char **argv)
 {
-	// static const struct argp argp = {
-	// 	.options = opts,
-	// 	.parser = parse_arg,
-	// 	.doc = argp_program_doc,
-	// };
 	struct runqlat_bpf *obj;
 	struct tm *tm;
 	char ts[32];
@@ -193,9 +109,6 @@ int main(int argc, char **argv)
 	int idx, cg_map_fd;
 	int cgfd = -1;
 
-	// err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
-	// if (err)
-	// 	return err;
     if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         print_usage();
         return 0;
@@ -225,16 +138,6 @@ int main(int argc, char **argv)
 	obj->rodata->targ_ms = env.milliseconds;
 	obj->rodata->targ_tgid = env.pid;
 	obj->rodata->filter_cg = env.cg;
-
-	// if (probe_tp_btf("sched_wakeup")) {
-	// 	bpf_program__set_autoload(obj->progs.handle_sched_wakeup, false);
-	// 	bpf_program__set_autoload(obj->progs.handle_sched_wakeup_new, false);
-	// 	bpf_program__set_autoload(obj->progs.handle_sched_switch, false);
-	// } else {
-	// 	// bpf_program__set_autoload(obj->progs.sched_wakeup, false);
-	// 	// bpf_program__set_autoload(obj->progs.sched_wakeup_new, false);
-	// 	// bpf_program__set_autoload(obj->progs.sched_switch, false);
-	// }
 
 	err = runqlat_bpf__load(obj);
 	if (err) {

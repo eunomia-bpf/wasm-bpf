@@ -54,6 +54,8 @@ TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
 ```
 
+The original c code is from [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+
 ## the compile process of the bootstrap.wasm
 
 We can provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap) development. Just run `make` to build the wasm binary:
@@ -69,6 +71,8 @@ This would invoke the following steps:
   ```sh
   clang -g -O2 -target bpf -D__TARGET_ARCH_x86 -I../../third_party/vmlinux/x86/ -idirafter /usr/lib/llvm-15/lib/clang/15.0.2/include -idirafter /usr/local/include -idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include -c bootstrap.bpf.c -o bootstrap.bpf.o
   ```
+
+  The kernel part of the BPF program is exactly the same as the libbpf(Or any other style can be compiled by clang. The BCC style can be compiled in this way once the [bcc to libbpf converter](https://github.com/iovisor/bcc/issues/4404) is completed.
 
 - generate the C header file from the BPF program:
 
@@ -127,27 +131,54 @@ This would invoke the following steps:
   >
   > The `ecc` compiler in eunomia-bpf will use libclang and llvm to find all struct definitions in the header file, and automatically add more btf info to the ebpf object. The original `clang` may not always generate enough btf info for the wasm-bpf tool to generate the correct C header file.
   >
-  > **Note: This process and tools is not always required, you can do that mannually.** You can mannually write all event structs definitions with `__attribute__((packed))` to avoid padding bytes, and convert all pointer to correct integers between the host and the wasm side. All types must be defined the same size and layout as the host side in wasm as well. This would be easy for simple events, but it would be hard for complex programs, so we create the wasm specific `bpftool` to generate the C header file for the user space code contains all type defines and correct struct layout.
+  > **Note: This process and tools is not always required, you can do that mannually.** You can mannually write all event structs definitions with `__attribute__((packed))` to avoid padding bytes, and convert all pointer to correct integers between the host and the wasm side. All types must be defined the same size and layout as the host side in wasm as well. This would be easy for simple events, but it would be hard for complex programs, so we create the wasm specific `bpftool` to generate the C header file for the user space code contains all type defines and correct struct layout from the `BTF` info.
   >
+  > We have create a specical POC tool outside of `bpftool` for generate C structs serialization-free bindings between eBPF/host side and Wasm, you can find it in [c-struct-bindgen](https://github.com/eunomia-bpf/c-struct-bindgen). More details about how to deal with the struct layout issue can be found in the README of the c-struct-bindgen tool.
 
   The libbpf API for wasm program is provided as an header only library, you can find it in `libbpf-wasm.h` (wasm-include/libbpf-wasm.h). The wasm program can use the libbpf API and syscall to operate the BPF object, for example:
 
-  ```c
+    ```c
+    /* Load and verify BPF application */
+    skel = bootstrap_bpf__open();
+    /* Parameterize BPF code with minimum duration parameter */
+    skel->rodata->min_duration_ns = env.min_duration_ms * 1000000ULL;
+    /* Load & verify BPF programs */
+    err = bootstrap_bpf__load(skel);
+    /* Attach tracepoints */
+    err = bootstrap_bpf__attach(skel);
+    ```
   
+  The `rodata` section is used to store the global variables in the BPF program, and the `bss` section is used to store the global variables in the user space code, which will be memory mapped to the correct offset at the `bpftool gen skeleton` time, so libelf library is not required to be compiled in Wasm and the runtime can still dynamically load and operate the BPF object.
 
-## run
+  The wasm side C code will be a slightly different from the native libbpf code, but it would provide the most ability from the eBPF side, for example, polling from the ring buffer or perf buffer, accessing the map from both the Wasm side and eBPF side, loading, attaching and detaching BPF programs, etc. It can support a lare number of eBPF program types and maps, covering the use cases of most eBPF programs from tracing, networking, security, etc.
 
-```console
-$ sudo ./wasm-bpf bootstrap.wasm
-TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
-18:57:58 EXEC  sed              74911   74910   /usr/bin/sed
-18:57:58 EXIT  sed              74911   74910   [0] (2ms)
-18:57:58 EXIT  cat              74912   74910   [0] (0ms)
-18:57:58 EXEC  cat              74913   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74913   74910   [0] (0ms)
-18:57:59 EXEC  cat              74914   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74914   74910   [0] (0ms)
-18:57:59 EXEC  cat              74915   74910   /usr/bin/cat
-18:57:59 EXIT  cat              74915   74910   [0] (1ms)
-18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
-```
+  Because some feature is missing in wasm side, for example, the signal handler is not support yet(2023/2), the original C code cannot be compiled to wasm directly, you need to modify the code slightly to make it work. We would try our best to make the wasm side libbpf API as close as possible to the native libbpf API, so maybe the user space code can be compiled to wasm directly in the future. More language bindings(Rust, Go, etc...) for wasm side bpf API will also be provided soon.
+
+  The polling API would be a wrapped for both ring buffer and perf buffer, and the user space code can use the same API to poll events from either ring buffer or perf buffer, depends on the type specified in the BPF program. For example, a ring buffer polling for a map defined as `BPF_MAP_TYPE_RINGBUF`:
+
+    ```c
+    struct {
+        __uint(type, BPF_MAP_TYPE_RINGBUF);
+        __uint(max_entries, 256 * 1024);
+    } rb SEC(".maps");
+    ```
+
+  You can use the following code to poll events from the ring buffer:
+
+    ```c
+    rb = bpf_buffer__open(skel->maps.rb, handle_event, NULL);
+    /* Process events */
+    printf("%-8s %-5s %-16s %-7s %-7s %s\n", "TIME", "EVENT", "COMM", "PID",
+           "PPID", "FILENAME/EXIT CODE");
+    while (!exiting) {
+        // poll buffer
+        err = bpf_buffer__poll(rb, 100 /* timeout, ms */);
+    ```
+
+  No serialization overhead is required for the ring buffer polling. The `bpf_buffer__poll` API will call the `handle_event` function to process the event data in the ring buffer.
+
+  The runtime is build on the top of libbpf [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) API to load bpf object into the kernel, so a wasm-bpf program will not rely on the kernel version where it's built, and can be run on any kernel version with BPF CO-RE support.
+
+  The size of `bootstrap.wasm` would be only `~90K`. It would be very easy to distributed over the network and can dynamically deploy, load and run on another machine in less than `100ms`. No `kernel header`, `LLVM`, `clang` dependency is required at the runtime, and don't need to do the heavy compilation work!
+
+  For a more complex example, you can find the [runqlat](../runqlat/) program in the `examples` directory.
