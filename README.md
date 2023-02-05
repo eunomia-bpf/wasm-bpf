@@ -29,6 +29,10 @@ For details compile process, please refer to the [examples/bootstrap/README.md](
 
 See the [examples](examples) directory for examples of eBPF programs written in C and compiled to WASM.
 
+- [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `tracing examples`
+- [lsm](examples/lsm) `security example`
+- [sockfilter](examples/sockfilter) `networking example`
+
 ### C example: [Bootstrap]((examples/bootstrap))
 
 `bootstrap` is an example of a simple (but realistic) BPF application. It
@@ -137,6 +141,19 @@ So the kernel eBPF can be config by wasm side or recieve the messages from
 userspace wasm runtime when it is running.
 
 See [examples/runqlat](examples/runqlat) for more details.
+
+## Socket filter
+
+sockfilter is an example of monitoring packet and dealing with __sk_buff structure.
+
+See [examples/sockfilter](examples/sockfilter) for more details.
+
+## lsm-rmdir
+
+`lsm-rmdir` hook in dir remove and check the permission to remove a directory. If dir
+name with `can_not_rm` will raise Operation not permitted.
+
+See [examples/lsm](examples/lsm) for more details.
 
 ## build the runtime
 

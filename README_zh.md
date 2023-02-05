@@ -27,6 +27,10 @@
 
 请转到 [examples](examples) 文件夹去查看使用 C 编写并编译到 Wasm 的 eBPF-Wasm 程序的示例。
 
+- [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `追踪`
+- [lsm](examples/lsm) `安全`
+- [sockfilter](examples/sockfilter) `网络`
+
 ### C 示例: Bootstrap
 
 `bootstrap` 是个简单但很现实的 eBPF 程序的示例。 这个示例可以跟踪进程的启动 (更精确地来说，是 `exec()` 那些系统调用) 和退出，然后输出进程的文件名、PID、父进程PID之类的数据，以及进程的退出状态和存活时间。使用 `-d <最小周期（毫秒>` 来限制要输出的进程的最小存活时间。 在这种模式下，进程启动事件不会被输出（科学一点，`exec()`，具体见下面的示例）。

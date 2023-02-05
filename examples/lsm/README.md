@@ -2,8 +2,7 @@
 
 ## lsm-rmdir
 
-`lsm-rmdir` is an example of a simple (but realistic) BPF application. It
-hook in dir remove and check the permission to remove a directory. If dir
+`lsm-rmdir` hook in dir remove and check the permission to remove a directory. If dir
 name with `can_not_rm` will raise Operation not permitted.
 
 We can provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap) development. Just run `make` to build the wasm binary:
