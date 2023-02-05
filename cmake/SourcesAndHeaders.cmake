@@ -1,5 +1,5 @@
 set(sources
-    src/bpf-api.cpp
+    src/wasm-bpf.cpp
 )
 
 set(exe_sources

@@ -1,3 +1,3 @@
 # runtime
 
-A minimal working example of wasm0bpf runtime
+A minimal working example of wasm-bpf runtime

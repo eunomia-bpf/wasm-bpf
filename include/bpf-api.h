@@ -27,7 +27,7 @@ void bpf_buffer__free(struct bpf_buffer *);
 void bpf_object__close(struct bpf_object *object);
 int bpf_link__destroy(bpf_link *link);
 }
-
+/// @brief init libbpf callbacks
 void init_libbpf(void);
 struct wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
@@ -51,8 +51,10 @@ enum bpf_map_cmd {
     _BPF_MAP_DELETE_ELEM,
     _BPF_MAP_GET_NEXT_KEY,
 };
-
+/// Operate on a bpf map.
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags);
+/// The main entry, argc and argv will be passed to the wasm module.
+int wasm_main(std::vector<uint8_t> wasm_module, int argc, char *argv[]);
 
 #endif

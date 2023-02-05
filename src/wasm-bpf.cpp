@@ -1,5 +1,3 @@
-#include "bpf-api.h"
-
 #include <asm/unistd.h>
 #include <errno.h>
 #include <unistd.h>
@@ -7,6 +5,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+
+#include "bpf-api.h"
 
 using namespace std;
 extern "C" {
@@ -29,7 +29,8 @@ void init_libbpf(void) {
 #define PERF_BUFFER_PAGES 64
 
 typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
-
+/// An absraction of a bpf ring buffer or perf buffer from bcc.
+/// https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
 struct bpf_buffer {
     struct bpf_map *events;
     void *inner;
@@ -88,13 +89,11 @@ struct bpf_buffer *bpf_buffer__new(struct bpf_map *events) {
         bpf_map__set_value_size(events, sizeof(int));
         type = BPF_MAP_TYPE_PERF_EVENT_ARRAY;
     }
-
     buffer = (bpf_buffer *)calloc(1, sizeof(*buffer));
     if (!buffer) {
         errno = ENOMEM;
         return NULL;
     }
-
     buffer->events = events;
     buffer->type = type;
     return buffer;
@@ -151,11 +150,11 @@ void bpf_buffer__free(struct bpf_buffer *buffer) {
     }
     free(buffer);
 }
-
+/// Get the file descriptor of a map by name.
 int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
     return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
-
+/// @brief load all bpf programs and maps in a object file.
 int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
     if (!object) {
@@ -164,7 +163,7 @@ int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     obj.reset(object);
     return bpf_object__load(object);
 }
-
+/// @brief attach a specific bpf program by name and target.
 int wasm_bpf_program::attach_bpf_program(const char *name,
                                          const char *attach_target) {
     struct bpf_link *link;
@@ -182,7 +181,7 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
     if (!link) return libbpf_get_error(link);
     return 0;
 }
-
+/// polling the buffer, if the buffer is not created, create it.
 int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
                                       int32_t sample_func, uint32_t ctx,
                                       void *data, size_t max_size,
@@ -207,7 +206,7 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     }
     return 0;
 }
-
+/// a wrapper function to call the bpf syscall
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags) {
     switch (cmd) {
@@ -219,8 +218,124 @@ int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
             return bpf_map_update_elem(fd, key, value, flags);
         case BPF_MAP_DELETE_ELEM:
             return bpf_map_delete_elem_flags(fd, key, flags);
-        default:
+        default:  // More syscall commands can be allowed here
             return -EINVAL;
     }
     return -EINVAL;
+}
+
+extern "C" {
+uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
+                              int obj_buf_sz) {
+    if (obj_buf_sz <= 0) return 0;
+    wasm_bpf_program *program = new wasm_bpf_program();
+    int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
+    if (res < 0) {
+        delete program;
+        return 0;
+    }
+    return (uint64_t)program;
+}
+
+int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
+    delete ((wasm_bpf_program *)program);
+    return 0;
+}
+
+int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
+                            char *name, char *attach_target) {
+    return ((wasm_bpf_program *)program)
+        ->attach_bpf_program(name, attach_target);
+}
+
+int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
+                         int32_t sample_func, uint32_t ctx, char *data,
+                         int max_size, int timeout_ms) {
+    return ((wasm_bpf_program *)program)
+        ->bpf_buffer_poll(exec_env, fd, sample_func, ctx, data,
+                          (size_t)max_size, timeout_ms);
+}
+
+int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
+                            const char *name) {
+    return ((wasm_bpf_program *)program)->bpf_map_fd_by_name(name);
+}
+
+int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
+                         void *value, void *next_key, uint64_t flags) {
+    return bpf_map_operate(fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
+}
+}
+
+int wasm_main(std::vector<uint8_t> wasm_module, int argc, char *argv[]) {
+    char error_buf[128];
+    int exit_code = 0;
+    char *wasm_path = NULL;
+    wasm_module_t module = NULL;
+    wasm_module_inst_t module_inst = NULL;
+    wasm_exec_env_t exec_env = NULL;
+    uint32_t stack_size = 8092, heap_size = 8092;
+    wasm_function_inst_t start_func = NULL;
+    uint32_t wasm_buffer = 0;
+    RuntimeInitArgs init_args;
+
+    memset(&init_args, 0, sizeof(RuntimeInitArgs));
+    init_libbpf();
+    // init wasm host functions
+    static NativeSymbol native_symbols[] = {
+        EXPORT_WASM_API_WITH_SIG(wasm_load_bpf_object, "(*~)I"),
+        EXPORT_WASM_API_WITH_SIG(wasm_attach_bpf_program, "(I$$)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_bpf_buffer_poll, "(Iiii*~i)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_fd_by_name, "(I$)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_operate, "(ii***I)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_close_bpf_object, "(I)i"),
+    };
+    init_args.mem_alloc_type = Alloc_With_System_Allocator;
+    init_args.n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
+    init_args.native_module_name = "env";
+    init_args.native_symbols = native_symbols;
+    // init runtime and wasi
+    if (!wasm_runtime_full_init(&init_args)) {
+        printf("Init runtime environment failed.\n");
+        return -1;
+    }
+    module = wasm_runtime_load(wasm_module.data(), (uint32_t)wasm_module.size(),
+                               error_buf, sizeof(error_buf));
+    if (!module) {
+        printf("Load wasm module failed. error: %s\n", error_buf);
+        return -1;
+    }
+    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv, argc);
+    module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
+                                           error_buf, sizeof(error_buf));
+    if (!module_inst) {
+        printf("Instantiate wasm module failed. error: %s\n", error_buf);
+        return -1;
+    }
+    exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+    if (!exec_env) {
+        printf("Create wasm execution environment failed.\n");
+        return -1;
+    }
+    wasm_runtime_set_module_inst(exec_env, module_inst);
+    if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
+        printf("The generate_float wasm function is not found.\n");
+        return -1;
+    }
+    if (!wasm_runtime_call_wasm(exec_env, start_func, 0, NULL)) {
+        printf("Call wasm function generate_float failed. %s\n",
+               wasm_runtime_get_exception(module_inst));
+        return -1;
+    }
+    exit_code = wasm_runtime_get_wasi_exit_code(module_inst);
+    if (exec_env) wasm_runtime_destroy_exec_env(exec_env);
+    if (module_inst) {
+        if (wasm_buffer) {
+            wasm_runtime_module_free(module_inst, wasm_buffer);
+        }
+        wasm_runtime_deinstantiate(module_inst);
+    }
+    if (module) wasm_runtime_unload(module);
+    wasm_runtime_destroy();
+    return exit_code;
 }

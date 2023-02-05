@@ -5,16 +5,17 @@
 
 A WebAssembly eBPF library and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
 
-- `General purpose`: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
-- `High performance`: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
-- `Easy to use`: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF `skeleton` headers and `type` definitions for bindings.
-- `Ultralightweight`: the runtime has only `300+` lines of code, binary only `1.5 MB` in size. Compiled Wasm module would be only `~90K`.
+- **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
+- **`High performance`**: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
+- **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings.
+- **`Ultralightweight`**: the sample runtime has only `300+` lines of code, binary only `1.5 MB` in size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
 
 ## How it works
 
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
 
-- host side: see [src](src) and [include](include) directories, which would be a runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+- host side: see [src](src) and [include](include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). 
+  - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
 - wasm side:
   - a [`libbpf-wasm`](wasm-include/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
   - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
@@ -26,7 +27,7 @@ For details compile process, please refer to the [examples/bootstrap/README.md](
 
 See the [examples](examples) directory for examples of eBPF programs written in C and compiled to WASM.
 
-### C example: Bootstrap
+### C example: [Bootstrap]((examples/bootstrap))
 
 `bootstrap` is an example of a simple (but realistic) BPF application. It
 tracks process starts (`exec()` family of syscalls, to be precise) and exits
@@ -73,9 +74,9 @@ TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
 ```
 
-The original c code is from [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+See [examples/bootstrap](examples/bootstrap) for more details.
 
-### C example: runqlat
+### C example: [runqlat](examples/runqlat)
 
 This program summarizes scheduler run queue latency as a histogram, showing
 how long tasks spent waiting their turn to run on-CPU.
@@ -132,6 +133,8 @@ space, for example:
 
 So the kernel eBPF can be config by wasm side or recieve the messages from
 userspace wasm runtime when it is running.
+
+See [examples/runqlat](examples/runqlat) for more details.
 
 ## build the runtime
 
