@@ -6,6 +6,10 @@
 hook in dir remove and check the permission to remove a directory. If dir 
 name with `can_not_rm` will raise Operation not permitted
 
-```bash
-$ sudo ./wasm-bpf lsm.wasm
+Note: LSM may failed to load if the kernel is not configured as:
+
+```
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_BPF_LSM=y
+CONFIG_LSM="[other LSMs],bpf"
 ```
