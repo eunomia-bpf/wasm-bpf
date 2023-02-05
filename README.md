@@ -142,18 +142,19 @@ userspace wasm runtime when it is running.
 
 See [examples/runqlat](examples/runqlat) for more details.
 
-## Socket filter
-
-sockfilter is an example of monitoring packet and dealing with __sk_buff structure.
-
-See [examples/sockfilter](examples/sockfilter) for more details.
-
-## lsm-rmdir
+### C example: lsm-rmdir
 
 `lsm-rmdir` hook in dir remove and check the permission to remove a directory. If dir
 name with `can_not_rm` will raise Operation not permitted.
 
 See [examples/lsm](examples/lsm) for more details.
+
+### C example: Socket filter
+
+sockfilter is an example of monitoring packet and dealing with __sk_buff structure.
+
+See [examples/sockfilter](examples/sockfilter) for more details.
+
 
 ## build the runtime
 
