@@ -3,7 +3,7 @@
 [![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/Ubuntu/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf)
 
-一个 WebAssembly eBPF 运行时和库， 由 [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(一次编写 – 到处运行) [libbpf](https://github.com/libbpf/libbpf) 和 [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) 强力驱动。
+一个 WebAssembly eBPF 库和运行时， 由 [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(一次编写 – 到处运行) [libbpf](https://github.com/libbpf/libbpf) 和 [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) 强力驱动。
 
 - `总体目标`: 给 WASM 提供大部分的 eBPF 功能。 比如从 `ring buffer` 或者 `perf buffer` 中获取数据、 通过 `maps` 提供 `内核` eBPF 和 `用户态` Wasm 程序之间的双向通信、 动态 `加载`, `附加` 或者 `解除附加` eBPF程序等。 支持大量的 eBPF 程序类型和 map 类型， 覆盖了用于 `tracing（跟踪）`, `networking（网络）`, `security（安全）` 的使用场景。
 - `高性能`: 对于复杂数据类型，没有额外的 `序列化` 开销。 通过 `共享内存` 来避免在 Host 和 WASM 端之间的额外数据拷贝。
@@ -20,15 +20,15 @@
   - 一个用来生成 Wasm-eBPF `skeleton` 头文件以及生成用于在主机侧和 Wasm 客户侧传递数据的 C 结构体定义的 [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool)。
   - 更多编程语言支持(比如 `Rust`、 `Go` 等)还在开发中。
 
-对于更详细的编译过程, 请查阅 [examples/bootstrap/README.md](examples/bootstrap/README.md).
+对于更详细的编译过程, 请查阅 [examples/bootstrap/README.md](examples/bootstrap/README.md)。
 
 ## 示例
 
-请转到 [examples](examples) 文件夹去查看使用 C 编写但编译到 Wasm 的 eBPF-Wasm 程序的示例。
+请转到 [examples](examples) 文件夹去查看使用 C 编写并编译到 Wasm 的 eBPF-Wasm 程序的示例。
 
 ### C 示例: Bootstrap
 
-`bootstrap` 是个简单但很现实的 eBPF 程序的示例. 这个示例可以跟踪进程的启动 (更精确地来说，是 `exec()` 那些系统调用) 和退出，然后输出进程的文件名、PID、父进程PID之类的数据，以及进程的退出状态和存活时间。使用 `-d <最小周期（毫秒>` 来限制要输出的进程的最小存活时间。 在这种模式下，进程启动事件不会被输出（科学一点，`exec()`，具体见下面的示例）。
+`bootstrap` 是个简单但很现实的 eBPF 程序的示例。 这个示例可以跟踪进程的启动 (更精确地来说，是 `exec()` 那些系统调用) 和退出，然后输出进程的文件名、PID、父进程PID之类的数据，以及进程的退出状态和存活时间。使用 `-d <最小周期（毫秒>` 来限制要输出的进程的最小存活时间。 在这种模式下，进程启动事件不会被输出（科学一点，`exec()`，具体见下面的示例）。
 
 `bootstrap` 是使用和来自 BCC 里的
 [libbpf-tools](https://github.com/iovisor/bcc/tree/master/libbpf-tools) 类似的思路来开发的。 但是为了让用户的修改容易一些， `bootstrap` 更独立，并且使用了更简单的 Makefile 。 `bootstrap` 演示了典型的 eBPF 用途:
@@ -36,7 +36,7 @@
 - 多个 BPF 程序协同工作 (在这里是进程 `exec（启动）` 和 `exit（退出）` 的事件处理函数)；
 - 用 BPF map 来维护状态；
 - 用 BPF 环形缓冲区来向用户态发送数据；
-- 使用全局变量来参数化程序表现.
+- 使用全局变量来修改程序行为。
 - `bootstrap` 使用了 BPF 的 CO-RE 特性以及 `vmlinux.h` 来从内核的 `struct task_struct` 来读取额外的进程信息。
 
 来看一个样例输出:
@@ -63,7 +63,7 @@ TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 18:57:59 EXEC  sleep            74916   74910   /usr/bin/sleep
 ```
 
-原始的 C 代码来自 [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+原始的 C 代码来自 [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap)。
 
 ### C 示例: runqlat
 
@@ -149,7 +149,7 @@ make build
 
 Wasm 模块可以同时加载和控制多个 eBPF 程序， 并且能够调用或者控制（通过[组件模型](https://github.com/WebAssembly/component-model)）其他语言编写的 Wasm 模块来处理数据。
 
-我们提了一个 WASI 提案 [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513)。
+我们也提了一个 WASI 提案 [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513)。
 
 ## 协议
 
