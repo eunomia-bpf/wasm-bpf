@@ -1,4 +1,4 @@
-# wasm-bpf: eBPF 的 WASM 运行时
+# wasm-bpf: 超轻量级 eBPF 的 WASM 运行时
 
 [![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/Ubuntu/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf)
