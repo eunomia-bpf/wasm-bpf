@@ -1,0 +1,3 @@
+*.bpf.o
+*.skel.h
+*.wasm
