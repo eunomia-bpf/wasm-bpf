@@ -51,7 +51,7 @@ test: ## run tests quickly with ctest
 	sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/
 
 test-wasm: /opt/wasi-sdk
-	make -C test/wasm-apps
+	cd test/wasm-apps && ./build.sh
 
 coverage: ## check code coverage quickly GCC
 	rm -rf build/
