@@ -4,6 +4,7 @@ all: test
 clean:
 	$(MAKE) -C bootstrap clean
 	$(MAKE) -C runqlat clean
+	$(MAKE) -C sockfilter clean
 
 TEST_TIME := 3
 

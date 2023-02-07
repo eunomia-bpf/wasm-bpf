@@ -6,7 +6,7 @@ BPF_HEADERS := ../../third_party/
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
-INCLUDES := -I$(dir $(VMLINUX)) -I$(BPF_HEADERS)
+INCLUDES := -I$(dir $(VMLINUX)) -I../../third_party/bpftool/libbpf/include/uapi -I$(BPF_HEADERS)
 CFLAGS := -g -Wall
 ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
 CLANG := clang
