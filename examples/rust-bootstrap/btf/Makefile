@@ -1,5 +1,6 @@
 generate:
 	clang -target bpf -g event-def.c -c -o event.def.o
+	cargo install btf2wit
 	btf2wit event.def.o -o event-def.wit
 	cp *.wit ../wit/
 

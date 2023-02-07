@@ -43,6 +43,8 @@ struct wasm_bpf_program {
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
                         uint32_t ctx, void *data, size_t max_size,
                         int timeout_ms);
+    int attach_cgroup(struct bpf_program *prog, const char *path);
+
     virtual ~wasm_bpf_program() {
         for (auto v : links) {
             bpf_link__destroy(v);

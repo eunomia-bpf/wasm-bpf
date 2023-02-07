@@ -1,6 +1,7 @@
 #include <asm/unistd.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <cstring>
 #include <fstream>
@@ -176,7 +177,19 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
         links.insert(link);
         return 0;
     }
-    // TODO: attach bpf program by sec name targets
+
+    struct bpf_object *o = obj.get();
+    struct bpf_program *prog = bpf_object__find_program_by_name(o,name);
+    if (!prog) {
+        printf("get prog %s fail", name);
+        return -1;
+    }
+    const char* sec_name = bpf_program__section_name(prog);
+    // TODO: support more attach type
+    if (strcmp(sec_name, "sockops")==0){
+        return attach_cgroup(prog, attach_target);
+    }
+
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
     if (!link) return libbpf_get_error(link);
@@ -208,6 +221,20 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     }
     return 0;
 }
+
+int wasm_bpf_program::attach_cgroup(struct bpf_program *prog, const char *path){
+    int fd = open(path, O_RDONLY);
+    if (fd==-1) {
+     	printf("Failed to open cgroup\n");
+	    return -1;
+    }
+    if (!bpf_program__attach_cgroup(prog, fd)) {
+    	printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog), path);
+	    return -1;
+    }
+    return 0;
+}
+
 /// a wrapper function to call the bpf syscall
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags) {

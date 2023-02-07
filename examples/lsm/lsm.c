@@ -22,8 +22,7 @@ int main(void) {
         return -1;
     }
     printf("Load and attach BPF lsm successfully\n");
-
-close_prog:
-    lsm_bpf__destroy(skel);
-    return 0;
+    while (1){
+        sleep(10);
+    }
 }
