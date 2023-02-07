@@ -12,4 +12,10 @@
         -Wl,--export=process_event \
         -Wl,--strip-all,--no-entry \
         -Wl,--allow-undefined \
-        -o a.wasm main.c
+        -o binding.wasm binding.c
+
+if [ -f "binding.wasm" ]; then
+        echo "build binding.wasm success"
+else
+        echo "build binding.wasm fail"
+fi
