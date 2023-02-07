@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <memory>
 #include <vector>
-
+#include <unordered_set>
 #include "wasm_export.h"
 
 #define POLL_TIMEOUT_MS 100
@@ -36,13 +36,18 @@ struct wasm_bpf_program {
         nullptr, bpf_buffer__free};
     void *poll_data;
     size_t max_poll_size;
-
+    std::unordered_set<bpf_link*> links;
     int bpf_map_fd_by_name(const char *name);
     int load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char *name, const char *attach_target);
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
                         uint32_t ctx, void *data, size_t max_size,
                         int timeout_ms);
+    virtual ~wasm_bpf_program() {
+        for (auto v : links) {
+            bpf_link__destroy(v);
+        }
+    }
 };
 
 enum bpf_map_cmd {
