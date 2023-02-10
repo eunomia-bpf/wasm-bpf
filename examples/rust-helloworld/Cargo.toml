@@ -1,0 +1,11 @@
+[package]
+name = "rust-helloworld"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[patch."https://github.com/bytecodealliance/wit-bindgen"]
+wasm-encoder = {version = "0.23.0"}
+
+[dependencies]
+wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", version = "0.3.0" }
