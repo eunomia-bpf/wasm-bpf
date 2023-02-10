@@ -1,33 +1,44 @@
-# Wasm-bpf: Wasm library and toolchain for eBPF
+# 📦 Wasm-bpf: Wasm library and toolchain for eBPF
 
 [![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/Ubuntu/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf)
 
 [中文文档](README_zh.md)
 
-A WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+`Wasm-bpf` is a WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). It can help you build almost every eBPF programs or usecases to `Wasm`.
+
+## Features
 
 - **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
 - **`High performance`**: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
 - **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings.
 - **`Ultralightweight`**: the sample runtime has only `300+` lines of code, binary only `1.5 MB` in size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
 
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to WASM.
+
 ## How it works
 
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
 
-- host side: see [src](src) and [include](include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+- host side: A simple runtime implementation example
+  - see [src](src) and [include](include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
   - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
-- wasm side:
+- wasm side: toolchains and libraries
   - a [`libbpf-wasm`](wasm-include/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
   - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
   - More languages support(`Rust`, `Go`, etc) is on the way.
 
-For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).
+For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).  The figure below shows the overall interaction between the eBPF and Wasm runtimes:
 
-## examples
+![wasi-bpf](test/asserts/wasm-bpf-no-bcc.png)
 
-See the [examples](examples) directory for examples of eBPF programs written in C and compiled to WASM.
+A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
+
+We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
+
+## 🔨 Examples
+
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to WASM.
 
 - [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `tracing examples`
 - [lsm](examples/lsm) `security example`
@@ -192,14 +203,13 @@ make build
 You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
 to build and run the examples.
 
-## Wasm-bpf overview
-
-![wasi-bpf](test/asserts/wasm-bpf-no-bcc.png)
-
-A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
-
-We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
-
 ## LICENSE
 
 MIT
+
+## 🔗 Links
+
+- GitHub Repository: https://github.com/wasm-ebpf/wasm-ebpf
+- CO-RE (Compile Once – Run Everywhere): https://cor-lab.github.io/co-re/
+- WAMR (WebAssembly Micro Runtime): https://webassembly.org/wamr/
+- libbpf: https://github.com/libbpf/libbpf
