@@ -29,8 +29,8 @@ INSTALL_LOCATION := ~/.local
 
 build: ## build all projects
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release # -Dwasm-bpf_ENABLE_ASAN=1 
-	cmake --build build --config Release 
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug # -Dwasm-bpf_ENABLE_ASAN=1 
+	cmake --build build --config Debug
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
