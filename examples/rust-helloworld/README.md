@@ -73,6 +73,32 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
 
 Please refer to [src/main.rs](src/main.rs).
 
+## Build and run
+
+```console
+cargo build --target wasi32-wasm
+wasm-bpf ./target/wasm32-wasi/debug/rust-helloworld.wasm
+```
+
+Example output:
+```console
+size=30248
+obj_ptr=94125967237728
+Attach handle_exec=0
+Attach handle_exit=0
+map_fd=6
+TIME     EXEC  sh               180245  33666   /bin/sh
+TIME     EXEC  which            180246  180245  /usr/bin/which
+TIME     EXIT  which            180246  180245  [0] (1ms)
+TIME     EXIT  sh               180245  33666   [0] (3ms)
+TIME     EXEC  sh               180247  33666   /bin/sh
+TIME     EXEC  ps               180248  180247  /usr/bin/ps
+TIME     EXIT  ps               180248  180247  [0] (23ms)
+TIME     EXIT  sh               180247  33666   [0] (25ms)
+TIME     EXEC  sh               180249  33666   /bin/sh
+TIME     EXEC  cpuUsage.sh      180250  180249  /root/.vscode-server-insiders/bin/a7d49b0f35f50e460835a55d20a00a735d1665a3/out/vs/base/node/cpuUsage.sh
+```
+
 ## Note
 
 - Strings (e.g `&str`) are **NOT** zero-terminated. Be care when pass a pointer to foreign functions.
