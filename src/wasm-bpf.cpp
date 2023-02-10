@@ -276,7 +276,7 @@ int wasm_main(std::vector<uint8_t> wasm_module, int argc, char *argv[]) {
     wasm_module_t module = NULL;
     wasm_module_inst_t module_inst = NULL;
     wasm_exec_env_t exec_env = NULL;
-    uint32_t stack_size = 8092, heap_size = 8092;
+    uint32_t stack_size = 1 << 20, heap_size = 1 << 20;
     wasm_function_inst_t start_func = NULL;
     uint32_t wasm_buffer = 0;
     RuntimeInitArgs init_args;
