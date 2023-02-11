@@ -25,7 +25,7 @@
 
 ## 示例
 
-请转到 [examples](examples) 文件夹去查看使用 C 编写并编译到 Wasm 的 eBPF-Wasm 程序的示例。
+请转到 [examples](examples) 文件夹去查看使用 C, Rust 编写并编译到 Wasm 的 eBPF-Wasm 程序的示例。
 
 - [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `追踪`
 - [lsm](examples/lsm) `安全`
@@ -69,6 +69,13 @@ TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 ```
 
 原始的 C 代码来自 [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap)。
+
+### Rust 示例: [Bootstrap](examples/rust-bootstrap)
+
+类似 C bootstrap, 但是是 Rust 写的。
+
+See [examples/rust-bootstrap](examples/rust-bootstrap) for more details.
+
 
 ### C 示例: runqlat
 

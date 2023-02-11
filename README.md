@@ -41,10 +41,11 @@ We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to WASM.
 
 - [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `tracing examples`
+- [rust-bootstrap](examples/rust-bootstrap) `tracing examples`
 - [lsm](examples/lsm) `security example`
 - [sockfilter](examples/sockfilter) `networking example`
 
-### C example: [Bootstrap]((examples/bootstrap))
+### C example: [Bootstrap](examples/bootstrap)
 
 `bootstrap` is an example of a simple (but realistic) BPF application. It
 tracks process starts (`exec()` family of syscalls, to be precise) and exits
@@ -92,6 +93,12 @@ TIME     EVENT COMM             PID     PPID    FILENAME/EXIT CODE
 ```
 
 See [examples/bootstrap](examples/bootstrap) for more details.
+
+### Rust example: [Bootstrap](examples/rust-bootstrap)
+
+similar to C bootstrap, but written in Rust.
+
+See [examples/rust-bootstrap](examples/rust-bootstrap) for more details.
 
 ### C example: [runqlat](examples/runqlat)
 
