@@ -1,3 +1,4 @@
 .vscode/
 build/
 examples/wasm-bpf
+wasi-sdk-*-linux.tar.gz
