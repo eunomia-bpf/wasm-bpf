@@ -6,29 +6,44 @@ use std::{ffi::CStr, slice};
 use wasm_bpf_binding::binding;
 #[export_name = "__main_argc_argv"]
 fn main(_env_json: u32, _str_len: i32) -> i32 {
-    let bpf_object = include_bytes!("bootstrap.bpf.o");
-    println!("size={}", bpf_object.len());
+    // embed and open the bpf object
+    let bpf_object = include_bytes!("../bootstrap.bpf.o");
+
+    // load the object
     let obj_ptr =
         binding::wasm_load_bpf_object(bpf_object.as_ptr() as u32, bpf_object.len() as i32);
-    println!("obj_ptr={}", obj_ptr);
+    if obj_ptr == 0 {
+        println!("Failed to load bpf object");
+        return 1;
+    }
 
     let attach_result = binding::wasm_attach_bpf_program(
         obj_ptr,
         "handle_exec\0".as_ptr() as u32,
         "\0".as_ptr() as u32,
     );
-    println!("Attach handle_exec={}", attach_result);
+    if attach_result < 0 {
+        println!("Attach handle_exit failed: {}", attach_result);
+        return 1;
+    }
     let attach_result = binding::wasm_attach_bpf_program(
         obj_ptr,
         "handle_exit\0".as_ptr() as u32,
         "\0".as_ptr() as u32,
     );
-    println!("Attach handle_exit={}", attach_result);
+    if attach_result < 0 {
+        println!("Attach handle_exit failed: {}", attach_result);
+        return 1;
+    }
     let map_fd = binding::wasm_bpf_map_fd_by_name(obj_ptr, "rb\0".as_ptr() as u32);
-    println!("map_fd={}", map_fd);
+    if map_fd < 0 {
+        println!("Failed to get map fd: {}", map_fd);
+        return 1;
+    }
     // binding::wasm
     let buffer = [0u8; 256];
     loop {
+        // polling the buffer
         binding::wasm_bpf_buffer_poll(
             obj_ptr,
             map_fd,
@@ -42,7 +57,7 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
 }
 
 #[repr(C, packed)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Event {
     pid: i32,
     ppid: i32,
