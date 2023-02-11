@@ -9,12 +9,12 @@
 
 ## Features
 
-- **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types, covering the use cases from `tracing`, `networking`, `security`.
+- **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types.
 - **`High performance`**: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
 - **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings.
-- **`Ultralightweight`**: the sample runtime has only `300+` lines of code, binary only `1.5 MB` in size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
+- **`Ultralightweight`**: the sample runtime has only `1.5 MB` in binary size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
 
-See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to WASM.
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to Wasm, covering the use cases from `tracing`, `networking` to `security`.
 
 ## How it works
 
@@ -44,6 +44,7 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 - [rust-bootstrap](examples/rust-bootstrap) `tracing examples`
 - [lsm](examples/lsm) `security example`
 - [sockfilter](examples/sockfilter) `networking example`
+- [sockops](examples/sockops) `networking example`
 
 ### C example: [Bootstrap](examples/bootstrap)
 
@@ -173,6 +174,11 @@ sockfilter is an example of monitoring packet and dealing with __sk_buff structu
 
 See [examples/sockfilter](examples/sockfilter) for more details.
 
+### C example: Sockops
+
+`sockops` add the pid int tcp option in syn packet.
+
+See [examples/sockops](examples/sockops) for more details.
 
 ## build the runtime
 

@@ -1,3 +1,4 @@
 *.bpf.o
 *.skel.h
 *.wasm
+*/vmlinux.h

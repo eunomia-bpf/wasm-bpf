@@ -1,6 +1,6 @@
 # Demo BPF applications
 
-## lsm-rmdir
+## sockops
 
 `sockops` add the pid int tcp option in syn packet.
 
