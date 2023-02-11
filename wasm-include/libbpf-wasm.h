@@ -68,6 +68,19 @@ struct bpf_object_skeleton {
     int prog_skel_sz; /* sizeof(struct bpf_prog_skeleton) */
     struct bpf_prog_skeleton *progs;
 };
+
+/*
+    set the bpf prog attach taeget, for example:
+        sockops need to set attach cgroup
+        sockfilter need to set attach nic
+        ...
+
+    runtime will according to the section name to attach the correspond target
+*/
+static void bpf_set_prog_attach_target(struct bpf_program *prog, char* attach_target){
+    strncpy(prog->attach_target, attach_target, sizeof(prog->attach_target));
+}
+
 /* handle errno-based (e.g., syscall or libc) errors according to libbpf's
  * strict mode settings
  */
