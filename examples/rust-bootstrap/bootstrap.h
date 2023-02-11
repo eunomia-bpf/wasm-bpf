@@ -7,13 +7,14 @@
 #define MAX_FILENAME_LEN 127
 
 struct event {
-	int pid;
-	int ppid;
-	unsigned exit_code;
-	unsigned long long duration_ns;
-	char comm[TASK_COMM_LEN];
-	char filename[MAX_FILENAME_LEN];
-	char exit_event;
-};
+    int pid;
+    int ppid;
+    unsigned int exit_code;
+    char pad0[4];
+    unsigned long long duration_ns;
+    char comm[16];
+    char filename[127];
+    char exit_event;
+} __attribute__((packed));
 
 #endif /* __BOOTSTRAP_H */

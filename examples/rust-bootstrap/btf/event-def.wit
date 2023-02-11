@@ -1,0 +1,13 @@
+
+default world host {
+    record event {
+         pid: s32,
+        ppid: s32,
+        exit-code: u32,
+        pad0: list<s8>,
+        duration-ns: u64,
+        comm: list<s8>,
+        filename: list<s8>,
+        exit-event: s8,
+    }
+}

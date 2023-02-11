@@ -31,12 +31,14 @@ all: build
 
 .PHONY: clean
 clean:
+	cargo clean
 	rm -rf *.o *.json *.wasm *.skel.h
 
 # Build BPF code
 %.bpf.o: %.bpf.c $(wildcard %.h) $(VMLINUX)
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	llvm-strip -g $@ # strip useless DWARF info
+	$(MAKE) -C btf
 
 .PHONY: build
 build: $(APP).bpf.o
