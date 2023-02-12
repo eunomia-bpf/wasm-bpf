@@ -5,7 +5,8 @@
  */
 #include <cstdio>
 #include <fstream>
-
+#include <signal.h>
+#include <iostream>
 #include "bpf-api.h"
 
 int main(int argc, char *argv[]) {
@@ -13,6 +14,10 @@ int main(int argc, char *argv[]) {
         printf("Usage: %s <wasm file> [wasm args]\n", argv[0]);
         return -1;
     }
+    signal(SIGINT, [](int x) {
+        std::cerr << "Ctrl C exit..." << std::endl;
+        exit(0);
+    });
     std::ifstream file(argv[1]);
     std::vector<uint8_t> wasm_module((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
