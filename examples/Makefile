@@ -17,4 +17,4 @@ test: $(TEST_CASES_DIRS)
 $(TEST_CASES_DIRS):
 	cp ../build/bin/Release/wasm-bpf .
 	make -C $@
-	sudo timeout --preserve-status -s 2 $(TEST_TIME) ./wasm-bpf $@/$@.wasm
+	make -C $@ test

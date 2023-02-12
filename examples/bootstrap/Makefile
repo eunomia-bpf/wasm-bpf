@@ -59,3 +59,8 @@ WASI_CFLAGS = -O2 --sysroot=/opt/wasi-sdk/share/wasi-sysroot -Wl,--allow-undefin
 
 $(APP).wasm: $(APP).c $(APP).skel.h
 	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $<
+
+TEST_TIME := 3
+.PHONY: test
+test:
+	sudo timeout --preserve-status -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm
