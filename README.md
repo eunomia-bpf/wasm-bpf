@@ -189,7 +189,7 @@ registered as git submodules.
 git submodule update --init --recursive
 ```
 
-## Install Dependencies
+### Install Dependencies
 
 You will need `clang`, `libelf` and `zlib` to build the examples,
 package names may vary across distros.
@@ -206,11 +206,19 @@ On CentOS/Fedora, you need:
 dnf install clang elfutils-libelf elfutils-libelf-devel zlib-devel
 ```
 
-Run `make` to build the examples, which will be placed in the `build`
- directory. `cmake` is required to build the runtime.
+### Build runtime as a executable tool
+
+Run `make` to build the runtime, which will be placed in the `build`
+directory. `cmake` is required to build the runtime.
 
 ```sh
 make build
+```
+
+### Build runtime as a library
+
+```sh
+make build-lib
 ```
 
 You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how

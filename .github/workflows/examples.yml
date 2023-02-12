@@ -1,4 +1,4 @@
-name: Ubuntu
+name: examples
 
 on:
   push:
@@ -21,7 +21,5 @@ jobs:
           make /opt/wasi-sdk
     - name: make
       run: make
-    - name: make build-lib
-      run: make build-lib
-    - name: make test
-      run: make test
+    - name: examples
+      run: make -C examples

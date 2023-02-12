@@ -43,4 +43,10 @@ clean:
 .PHONY: build
 build: $(APP).bpf.o
 	rustup target add wasm32-wasi
-	cargo build --target wasm32-wasi
+	cargo build --target wasm32-wasi --release
+	cp target/wasm32-wasi/release/rust-bootstrap.wasm rust-bootstrap.wasm
+
+TEST_TIME := 3
+.PHONY: test
+test:
+	sudo timeout --preserve-status -s 2 $(TEST_TIME) ../wasm-bpf rust-bootstrap.wasm

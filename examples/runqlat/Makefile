@@ -65,3 +65,8 @@ emsdk:
 	git clone https://github.com/emscripten-core/emsdk.git
 	cd emsdk && ./emsdk install latest && ./emsdk activate latest
 	source ./emsdk_env.sh
+
+TEST_TIME := 3
+.PHONY: test
+test:
+	sudo timeout --preserve-status -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm

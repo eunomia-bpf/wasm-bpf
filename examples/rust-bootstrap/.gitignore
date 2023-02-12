@@ -1,3 +1,4 @@
 /target
 *.o
 wit/event-def.wit
+wasm-bpf-binding/target
