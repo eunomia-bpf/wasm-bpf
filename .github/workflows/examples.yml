@@ -1,8 +1,8 @@
-name: Ubuntu
+name: examples
 
 on:
   push:
-    branches: "*"
+    branches: "main"
   pull_request:
     branches: "*"
 
