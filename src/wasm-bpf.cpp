@@ -1,7 +1,7 @@
 #include <asm/unistd.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <cstring>
 #include <fstream>
@@ -159,7 +159,7 @@ int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
 int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
     if (!object) {
-        return libbpf_get_error(object);
+        return (int)libbpf_get_error(object);
     }
     obj.reset(object);
     return bpf_object__load(object);
@@ -172,27 +172,27 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
         link = bpf_program__attach(
             bpf_object__find_program_by_name(obj.get(), name));
         if (!link) {
-            return libbpf_get_error(link);
+            return (int)libbpf_get_error(link);
         }
         links.insert(link);
         return 0;
     }
 
     struct bpf_object *o = obj.get();
-    struct bpf_program *prog = bpf_object__find_program_by_name(o,name);
+    struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
     if (!prog) {
         printf("get prog %s fail", name);
         return -1;
     }
-    const char* sec_name = bpf_program__section_name(prog);
+    const char *sec_name = bpf_program__section_name(prog);
     // TODO: support more attach type
-    if (strcmp(sec_name, "sockops")==0){
+    if (strcmp(sec_name, "sockops") == 0) {
         return attach_cgroup(prog, attach_target);
     }
 
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
-    if (!link) return libbpf_get_error(link);
+    if (!link) return (int)libbpf_get_error(link);
     links.insert(link);
     return 0;
 }
@@ -222,15 +222,17 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     return 0;
 }
 
-int wasm_bpf_program::attach_cgroup(struct bpf_program *prog, const char *path){
+int wasm_bpf_program::attach_cgroup(struct bpf_program *prog,
+                                    const char *path) {
     int fd = open(path, O_RDONLY);
-    if (fd==-1) {
-     	printf("Failed to open cgroup\n");
-	    return -1;
+    if (fd == -1) {
+        printf("Failed to open cgroup\n");
+        return -1;
     }
     if (!bpf_program__attach_cgroup(prog, fd)) {
-    	printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog), path);
-	    return -1;
+        printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
+               path);
+        return -1;
     }
     return 0;
 }

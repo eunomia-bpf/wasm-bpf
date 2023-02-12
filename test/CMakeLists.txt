@@ -29,7 +29,7 @@ foreach(file ${test_sources})
 
   if (${CMAKE_PROJECT_NAME}_ENABLE_CODE_COVERAGE)
     target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC -O0 -g -fprofile-arcs -ftest-coverage)
-    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC -fprofile-arcs -ftest-coverage -lbpf)
+    target_link_options(${CMAKE_PROJECT_NAME} PUBLIC -fprofile-arcs -ftest-coverage)
     verbose_message("Code coverage is enabled and provided with GCC.")
   endif()
 
