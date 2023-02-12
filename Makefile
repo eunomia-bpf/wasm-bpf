@@ -41,7 +41,7 @@ install-deps: ## install deps
 
 test: ## run tests quickly with ctest
 	sudo rm -rf build/
-	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1 # -Dwasm-bpf_ENABLE_ASAN=1 -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
+	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1 -Dwasm-bpf_ENABLE_ASAN=1 -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
 	cmake --build build
 	cd build/ && sudo ctest -VV
 
