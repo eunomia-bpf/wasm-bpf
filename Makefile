@@ -27,9 +27,14 @@ export PRINT_HELP_PYSCRIPT
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
 INSTALL_LOCATION := ~/.local
 
-build: ## build all projects
+build: ## build as a tool
 	rm -rf build/
-	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release # -Dwasm-bpf_ENABLE_ASAN=1 
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -Dwasm-bpf_BUILD_EXECUTABLE=1 # -Dwasm-bpf_ENABLE_ASAN=1 
+	cmake --build build --config Release 
+
+build-lib: ## build as a library
+	rm -rf build/
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -Dwasm-bpf_BUILD_EXECUTABLE=0 # -Dwasm-bpf_ENABLE_ASAN=1 
 	cmake --build build --config Release 
 
 help:
