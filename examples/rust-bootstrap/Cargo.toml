@@ -6,8 +6,7 @@ edition = "2021"
 [dependencies]
 # wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", version = "0.3.0" }
 
-wasm-bpf-binding = { path = "wasm-bpf-binding"}
-wit-bindgen = { git = "https://github.com/bytecodealliance/wit-bindgen", version = "0.3.0" }
+wasm-bpf-binding = { path = "../../wasm-sdk/wasm-bpf-binding"}
 
 # [patch.crates-io]
 # wit-component = {git = "https://github.com/bytecodealliance/wasm-tools", version = "0.5.0", rev = "9640d187a73a516c42b532cf2a10ba5403df5946"}

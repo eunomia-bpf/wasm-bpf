@@ -1,1 +1,1 @@
-../../wasm-include/libbpf-wasm.h
+../../wasm-sdk/libbpf-wasm.h
