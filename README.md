@@ -16,6 +16,8 @@
 
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to Wasm, covering the use cases from `tracing`, `networking` to `security`.
 
+For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org/) images, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
+
 ## How it works
 
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).

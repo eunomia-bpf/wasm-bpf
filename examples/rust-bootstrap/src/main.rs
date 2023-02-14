@@ -16,7 +16,7 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
         println!("Failed to load bpf object");
         return 1;
     }
-
+    // attach bpf program to func
     let attach_result = binding::wasm_attach_bpf_program(
         obj_ptr,
         "handle_exec\0".as_ptr() as u32,
@@ -26,6 +26,7 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
         println!("Attach handle_exit failed: {}", attach_result);
         return 1;
     }
+    // attach bpf program to func
     let attach_result = binding::wasm_attach_bpf_program(
         obj_ptr,
         "handle_exit\0".as_ptr() as u32,
@@ -35,6 +36,7 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
         println!("Attach handle_exit failed: {}", attach_result);
         return 1;
     }
+    // get the map fd for ring buffer
     let map_fd = binding::wasm_bpf_map_fd_by_name(obj_ptr, "rb\0".as_ptr() as u32);
     if map_fd < 0 {
         println!("Failed to get map fd: {}", map_fd);
@@ -69,7 +71,7 @@ struct Event {
     exit_event: u8,
 }
 
-// #[export_name = "handle_event"]
+/// handle ring buffer events
 extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
     let event_slice = unsafe { slice::from_raw_parts(data as *const Event, 1) };
     let event = &event_slice[0];
@@ -107,5 +109,4 @@ extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
                 .unwrap()
         );
     }
-    // println!("{}",event.exit_event);
 }
