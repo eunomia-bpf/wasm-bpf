@@ -1,0 +1,15 @@
+default world %import {
+    type %s-int32-t = s32
+    type %s-uint32-t = u32
+    type %s-uint64-t = u64
+    type %int32-t = %s-int32-t
+    type %uint32-t = %s-uint32-t
+    type %uint64-t = %s-uint64-t
+    type %bpf-object-skel = %uint64-t
+    import %wasm-bpf-map-operate: func (%fd: s32, %cmd: s32, %key: u32 /* pointer to <()> */, %value: u32 /* pointer to <()> */, %next-key: u32 /* pointer to <()> */, %flags: %uint64-t) -> s32 /* linkage: static */
+    import %wasm-bpf-buffer-poll: func (%program: %bpf-object-skel, %fd: s32, %sample-func: %int32-t, %ctx: %uint32-t, %data: u32 /* pointer to <u8> */, %max-size: s32, %timeout-ms: s32) -> s32 /* linkage: static */
+    import %wasm-attach-bpf-program: func (%obj: %bpf-object-skel, %name: u32 /* pointer to </* const */u8> */, %attach-target: u32 /* pointer to </* const */u8> */) -> s32 /* linkage: static */
+    import %wasm-load-bpf-object: func (%obj-buf: u32 /* pointer to </* const */()> */, %obj-buf-sz: s32) -> %bpf-object-skel /* linkage: static */
+    import %wasm-close-bpf-object: func (%obj: %bpf-object-skel) -> s32 /* linkage: static */
+    import %wasm-bpf-map-fd-by-name: func (%obj: %bpf-object-skel, %name: u32 /* pointer to </* const */u8> */) -> s32 /* linkage: static */
+}

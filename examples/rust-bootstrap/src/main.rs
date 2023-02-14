@@ -1,14 +1,17 @@
 #![no_main]
 
-wit_bindgen_guest_rust::generate!("host");
+mod wit_binding {
+    wit_bindgen::generate!("import");
+}
 use std::{ffi::CStr, slice};
-
-use wasm_bpf_binding::binding;
+#[cfg(not(feature = "wasmtime"))]
+use wasm_bpf_binding::binding as binding;
+#[cfg(feature = "wasmtime")]
+use wit_binding as binding;
 #[export_name = "__main_argc_argv"]
 fn main(_env_json: u32, _str_len: i32) -> i32 {
     // embed and open the bpf object
     let bpf_object = include_bytes!("../bootstrap.bpf.o");
-
     // load the object
     let obj_ptr =
         binding::wasm_load_bpf_object(bpf_object.as_ptr() as u32, bpf_object.len() as i32);
@@ -16,7 +19,6 @@ fn main(_env_json: u32, _str_len: i32) -> i32 {
         println!("Failed to load bpf object");
         return 1;
     }
-
     let attach_result = binding::wasm_attach_bpf_program(
         obj_ptr,
         "handle_exec\0".as_ptr() as u32,
