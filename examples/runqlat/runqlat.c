@@ -28,7 +28,7 @@ struct env {
 	char *cgroupspath;
 	bool cg;
 } env = {
-	.interval = 99999999,
+	.interval = 1,
 	.times = 99999999,
 };
 
@@ -45,7 +45,6 @@ const char argp_program_doc[] =
 "EXAMPLES:\n"
 "    runqlat         # summarize run queue latency as a histogram\n"
 "    runqlat 1 10    # print 1 second summaries, 10 times\n"
-"    runqlat -mT 1   # 1s summaries, milliseconds, and timestamps\n"
 "    runqlat -P      # show each PID separately\n"
 "    runqlat -p 185  # trace PID 185 only\n"
 "    runqlat -c CG   # Trace process under cgroupsPath CG\n";
@@ -108,12 +107,14 @@ int main(int argc, char **argv)
 	int err;
 	int idx, cg_map_fd;
 	int cgfd = -1;
-
+	
+	// parse the args manually for demo purpose
     if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         print_usage();
         return 0;
-    }
-    if (argc == 3) {
+    } else if (argc == 2 && strcmp(argv[1], "-P")) {
+		env.per_process = true;
+	} else if (argc == 3) {
         env.interval = atoi(argv[1]);
         env.times = atoi(argv[2]);
     } else if (argc == 2) {
