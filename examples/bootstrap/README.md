@@ -135,7 +135,7 @@ This would invoke the following steps:
   >
   > We have create a specical POC tool outside of `bpftool` for generate C structs serialization-free bindings between eBPF/host side and Wasm, you can find it in [c-struct-bindgen](https://github.com/eunomia-bpf/c-struct-bindgen). More details about how to deal with the struct layout issue can be found in the README of the c-struct-bindgen tool.
 
-  The libbpf API for wasm program is provided as an header only library, you can find it in `libbpf-wasm.h` (wasm-include/libbpf-wasm.h). The wasm program can use the libbpf API and syscall to operate the BPF object, for example:
+  The libbpf API for wasm program is provided as an header only library, you can find it in [`libbpf-wasm.h`](../../wasm-sdk/libbpf-wasm.h). The wasm program can use the libbpf API and syscall to operate the BPF object, for example:
 
     ```c
     /* Load and verify BPF application */
