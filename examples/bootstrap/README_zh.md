@@ -120,7 +120,7 @@ make
   >
   >我们创建了一个特殊的 POC 工具，它不属于 `bpftool`，可以生成 eBPF/主机端和 Wasm 之间的不需要序列化的 C 结构体绑定，您可以在 [c-struct-bindgen](https://github.com/eunomia-bpf/c-struct-bindgen) 中找到它。关于如何处理结构体布局问题的更多详细信息，可以在 c-struct-bindgen 工具的 README 中找到。
 
-libbpf API 为 wasm 程序提供了一个仅包含头文件的库，您可以在 libbpf-wasm.h（wasm-include/libbpf-wasm.h）中找到它。wasm 程序可以使用 libbpf API 和 syscall 操作 BPF 对象，例如：
+libbpf API 为 wasm 程序提供了一个仅包含头文件的库，您可以在 [libbpf-wasm](../../wasm-sdk/libbpf-wasm.h) 中找到它。wasm 程序可以使用 libbpf API 和 syscall 操作 BPF 对象，例如：
 
 ```c
 /* Load and verify BPF application */
