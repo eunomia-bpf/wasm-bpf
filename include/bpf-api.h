@@ -62,7 +62,8 @@ enum bpf_map_cmd {
 /// Operate on a bpf map.
 int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
                     uint64_t flags);
+extern "C" {
 /// The main entry, argc and argv will be passed to the wasm module.
 int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]);
-
+}
 #endif
