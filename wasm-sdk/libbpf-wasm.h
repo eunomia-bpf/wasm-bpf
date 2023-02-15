@@ -55,8 +55,10 @@ struct bpf_prog_skeleton {
 struct bpf_object_skeleton {
     size_t sz; /* size of this struct, for forward/backward compatibility */
     const char *name;
-    const void *data;
+    void *data;
     size_t data_sz;
+    size_t rodata_offset; /* offset of rodata section */
+	size_t bss_offset; /* offset of bss section */
 
     bpf_object_skel obj;
 
@@ -92,6 +94,15 @@ static inline int libbpf_err_errno(int ret) {
 static int bpf_map__fd(const struct bpf_map *map) {
     return wasm_bpf_map_fd_by_name(map->obj_ptr, map->name);
 }
+
+static bool
+str_has_surfix(const char *str, const char *surfix) {
+    size_t str_len = strlen(str);
+    size_t surfix_len = strlen(surfix);
+    if (str_len < surfix_len) return false;
+    return strcmp(str + str_len - surfix_len, surfix) == 0;
+}
+
 struct bpf_object_open_opts;
 static int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
                                      const struct bpf_object_open_opts *opts) {
@@ -105,6 +116,14 @@ static int bpf_object__open_skeleton(struct bpf_object_skeleton *s,
         if (!*map_skel->map) return -1;
         strncpy((*map_skel->map)->name, map_skel->name,
                 sizeof((*map_skel->map)->name));
+        if (str_has_surfix(map_skel->name, "rodata") && map_skel->mmaped) {
+            // set the address to mmaped rodata variable
+            *map_skel->mmaped = s->data + s->rodata_offset;
+        }
+        // it will not work for bss, because bss is not mmaped 
+        // if (str_has_surfix(map_skel->name, "bss") && map_skel->mmaped) {
+        //     *map_skel->mmaped = s->data + s->bss_offset;
+        // }
     }
 
     for (int i = 0; i < s->prog_cnt; i++) {
