@@ -269,7 +269,7 @@ int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
 }
 }
 
-int wasm_main(std::vector<uint8_t> wasm_module, int argc, char *argv[]) {
+int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
     char error_buf[128];
     int exit_code = 0;
     char *wasm_path = NULL;
@@ -301,7 +301,7 @@ int wasm_main(std::vector<uint8_t> wasm_module, int argc, char *argv[]) {
         printf("Init runtime environment failed.\n");
         return -1;
     }
-    module = wasm_runtime_load(wasm_module.data(), (uint32_t)wasm_module.size(),
+    module = wasm_runtime_load(buf, size,
                                error_buf, sizeof(error_buf));
     if (!module) {
         printf("Load wasm module failed. error: %s\n", error_buf);
