@@ -164,38 +164,54 @@ int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     obj.reset(object);
     return bpf_object__load(object);
 }
+
+static int attach_cgroup(struct bpf_program *prog, const char *path) {
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        printf("Failed to open cgroup\n");
+        return -1;
+    }
+    if (!bpf_program__attach_cgroup(prog, fd)) {
+        printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
+               path);
+        return -1;
+    }
+    return 0;
+}
+
 /// @brief attach a specific bpf program by name and target.
 int wasm_bpf_program::attach_bpf_program(const char *name,
                                          const char *attach_target) {
     struct bpf_link *link;
     if (!attach_target) {
+        // auto attach
         link = bpf_program__attach(
             bpf_object__find_program_by_name(obj.get(), name));
-        if (!link) {
-            return (int)libbpf_get_error(link);
+    } else {
+        struct bpf_object *o = obj.get();
+        struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
+        if (!prog) {
+            printf("get prog %s fail", name);
+            return -1;
         }
-        links.insert(link);
-        return 0;
+        const char *sec_name = bpf_program__section_name(prog);
+        // TODO: support more attach type
+        if (strcmp(sec_name, "sockops") == 0) {
+            return attach_cgroup(prog, attach_target);
+        } else {
+            // try auto attach if new attach target is not supported
+            link = bpf_program__attach(
+                bpf_object__find_program_by_name(obj.get(), name));
+        }
     }
-
-    struct bpf_object *o = obj.get();
-    struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
-    if (!prog) {
-        printf("get prog %s fail", name);
-        return -1;
+    if (!link) {
+        return (int)libbpf_get_error(link);
     }
-    const char *sec_name = bpf_program__section_name(prog);
-    // TODO: support more attach type
-    if (strcmp(sec_name, "sockops") == 0) {
-        return attach_cgroup(prog, attach_target);
-    }
-
-    link =
-        bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
-    if (!link) return (int)libbpf_get_error(link);
-    links.insert(link);
+    links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+        link, bpf_link__destroy});
     return 0;
 }
+
 /// polling the buffer, if the buffer is not created, create it.
 int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
                                       int32_t sample_func, uint32_t ctx,
@@ -218,21 +234,6 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     int res = bpf_buffer__poll(buffer.get(), timeout_ms);
     if (res < 0) {
         return res;
-    }
-    return 0;
-}
-
-int wasm_bpf_program::attach_cgroup(struct bpf_program *prog,
-                                    const char *path) {
-    int fd = open(path, O_RDONLY);
-    if (fd == -1) {
-        printf("Failed to open cgroup\n");
-        return -1;
-    }
-    if (!bpf_program__attach_cgroup(prog, fd)) {
-        printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
-               path);
-        return -1;
     }
     return 0;
 }
@@ -330,8 +331,7 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
         printf("Init runtime environment failed.\n");
         return -1;
     }
-    module = wasm_runtime_load(buf, size,
-                               error_buf, sizeof(error_buf));
+    module = wasm_runtime_load(buf, size, error_buf, sizeof(error_buf));
     if (!module) {
         printf("Load wasm module failed. error: %s\n", error_buf);
         return -1;
@@ -350,11 +350,11 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
     }
     wasm_runtime_set_module_inst(exec_env, module_inst);
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
-        printf("The generate_float wasm function is not found.\n");
+        printf("The start wasm function is not found.\n");
         return -1;
     }
     if (!wasm_runtime_call_wasm(exec_env, start_func, 0, NULL)) {
-        printf("Call wasm function generate_float failed. %s\n",
+        printf("Call wasm function start failed. %s\n",
                wasm_runtime_get_exception(module_inst));
         return -1;
     }

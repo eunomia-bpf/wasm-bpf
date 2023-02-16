@@ -3,10 +3,12 @@
  * Copyright (c) 2022, eunomia-bpf org
  * All rights reserved.
  */
+#include <signal.h>
+
 #include <cstdio>
 #include <fstream>
-#include <signal.h>
 #include <iostream>
+
 #include "bpf-api.h"
 
 int main(int argc, char *argv[]) {
@@ -21,5 +23,6 @@ int main(int argc, char *argv[]) {
     std::ifstream file(argv[1]);
     std::vector<uint8_t> wasm_module((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
-    return wasm_main(wasm_module.data(), wasm_module.size(), argc - 1, argv + 1);
+    return wasm_main(wasm_module.data(), wasm_module.size(), argc - 1,
+                     argv + 1);
 }

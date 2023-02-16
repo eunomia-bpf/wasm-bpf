@@ -11,8 +11,9 @@
 
 #include <cstdlib>
 #include <memory>
-#include <vector>
 #include <unordered_set>
+#include <vector>
+
 #include "wasm_export.h"
 
 #define POLL_TIMEOUT_MS 100
@@ -25,7 +26,7 @@ struct bpf_object;
 struct bpf_link;
 void bpf_buffer__free(struct bpf_buffer *);
 void bpf_object__close(struct bpf_object *object);
-int bpf_link__destroy(bpf_link *link);
+int bpf_link__destroy(struct bpf_link *link);
 }
 
 /// @brief init libbpf callbacks
@@ -35,22 +36,15 @@ struct wasm_bpf_program {
         nullptr, bpf_object__close};
     std::unique_ptr<bpf_buffer, void (*)(bpf_buffer *obj)> buffer{
         nullptr, bpf_buffer__free};
+    std::unordered_set<std::unique_ptr<bpf_link, int (*)(bpf_link *obj)>> links;
     void *poll_data;
     size_t max_poll_size;
-    std::unordered_set<bpf_link*> links;
     int bpf_map_fd_by_name(const char *name);
     int load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char *name, const char *attach_target);
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
                         uint32_t ctx, void *data, size_t max_size,
                         int timeout_ms);
-    int attach_cgroup(struct bpf_program *prog, const char *path);
-
-    virtual ~wasm_bpf_program() {
-        for (auto v : links) {
-            bpf_link__destroy(v);
-        }
-    }
 };
 
 enum bpf_map_cmd {
