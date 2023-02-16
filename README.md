@@ -232,7 +232,9 @@ MIT
 
 ## 🔗 Links
 
-- GitHub Repository: https://github.com/wasm-ebpf/wasm-ebpf
-- CO-RE (Compile Once – Run Everywhere): https://cor-lab.github.io/co-re/
-- WAMR (WebAssembly Micro Runtime): https://webassembly.org/wamr/
+- GitHub Repository: https://github.com/eunomia-bpf/wasm-bpf
+- eunomia-bpf project: simplify and enhance eBPF with CO-RE and WebAssembly https://github.com/eunomia-bpf/eunomia-bpf
+- documents and blogs: https://eunomia-bpf.github.io/blog/ebpf-wasm.html
+- CO-RE (Compile Once – Run Everywhere): https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html
+- WAMR (WebAssembly Micro Runtime): https://github.com/bytecodealliance/wasm-micro-runtime
 - libbpf: https://github.com/libbpf/libbpf
