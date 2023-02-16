@@ -74,7 +74,7 @@ typical BPF features:
 Here's an example output:
 
 ```console
-$ sudo sudo ./wasm-bpf bootstrap.wasm -h
+$ sudo ./wasm-bpf bootstrap.wasm -h
 BPF bootstrap demo application.
 
 It traces process start and exits and shows associated 
