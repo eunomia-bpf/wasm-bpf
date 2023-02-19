@@ -1,3 +1,5 @@
+![logo](test/asserts/logo.png)
+
 # 📦 Wasm-bpf: Wasm library and toolchain for eBPF
 
 ![logo](test/asserts/logo.png)
