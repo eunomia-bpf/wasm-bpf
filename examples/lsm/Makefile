@@ -1,6 +1,7 @@
 .PHONY: all
 
 ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's/ppc64le/powerpc/' | sed 's/mips.*/mips/')
+TINYGO ?= $(shell which tinygo)
 VMLINUX := ../../third_party/vmlinux/$(ARCH)/vmlinux.h
 BPF_HEADERS := ../../third_party/
 # Use our own libbpf API headers and Linux UAPI headers distributed with
@@ -34,6 +35,7 @@ all: $(APP).wasm $(APP).bpf.o
 .PHONY: clean
 clean:
 	rm -rf *.o *.json *.wasm *.skel.h
+	cd go_wasm/ && rm -rf *.o *.json *.wasm *.skel.h
 
 # Build BPF code
 %.bpf.o: %.bpf.c $(wildcard %.h) $(VMLINUX)
@@ -59,6 +61,11 @@ WASI_CFLAGS = -O2 --sysroot=/opt/wasi-sdk/share/wasi-sysroot -Wl,--allow-undefin
 
 $(APP).wasm: $(APP).c $(APP).skel.h
 	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $< 
+
+$(APP)_go_wasm: $(APP).bpf.o
+	cp ./$(APP).bpf.o go-lsm 
+	cd go-lsm && $(TINYGO) build -target wasi -o $(APP).go.wasm  main.go
+	
 
 TEST_TIME := 3
 .PHONY: test
