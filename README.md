@@ -1,7 +1,10 @@
+![logo](test/asserts/logo.png)
+
 # 📦 Wasm-bpf: Wasm library and toolchain for eBPF
 
 [![Actions Status](https://github.com/eunomia-bpf/wasm-bpf/workflows/Ubuntu/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions)
-[![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/eunomia-bpf)
+[![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf)
+[![DeepSource](https://deepsource.io/gh/eunomia-bpf/wasm-bpf.svg/?label=active+issues&show_trend=true&token=rcSI3J1-gpwLIgZWtKZC-N6C)](https://deepsource.io/gh/eunomia-bpf/wasm-bpf/?ref=repository-badge)
 
 [中文文档](README_zh.md)
 
@@ -74,7 +77,7 @@ typical BPF features:
 Here's an example output:
 
 ```console
-$ sudo sudo ./wasm-bpf bootstrap.wasm -h
+$ sudo ./wasm-bpf bootstrap.wasm -h
 BPF bootstrap demo application.
 
 It traces process start and exits and shows associated 
@@ -232,7 +235,9 @@ MIT
 
 ## 🔗 Links
 
-- GitHub Repository: https://github.com/wasm-ebpf/wasm-ebpf
-- CO-RE (Compile Once – Run Everywhere): https://cor-lab.github.io/co-re/
-- WAMR (WebAssembly Micro Runtime): https://webassembly.org/wamr/
+- GitHub Repository: https://github.com/eunomia-bpf/wasm-bpf
+- eunomia-bpf project: simplify and enhance eBPF with CO-RE and WebAssembly https://github.com/eunomia-bpf/eunomia-bpf
+- documents and blogs: https://eunomia-bpf.github.io/blog/ebpf-wasm.html
+- CO-RE (Compile Once – Run Everywhere): https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html
+- WAMR (WebAssembly Micro Runtime): https://github.com/bytecodealliance/wasm-micro-runtime
 - libbpf: https://github.com/libbpf/libbpf
