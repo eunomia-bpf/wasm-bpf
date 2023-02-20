@@ -27,6 +27,6 @@ jobs:
           toolchain: stable
           override: true
     - name: examples with rust runtime
-      run: IMPL=rust sudo -E make -C examples
+      run: IMPL=rust make -C examples
     - name: examples with cpp runtime
-      run: IMPL=cpp sudo -E make -C examples
+      run: IMPL=cpp  make -C examples
