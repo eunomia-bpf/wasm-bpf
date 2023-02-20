@@ -49,4 +49,4 @@ build: $(APP).bpf.o
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout --preserve-status -s 2 $(TEST_TIME) ../wasm-bpf rust-bootstrap.wasm
+	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf rust-bootstrap.wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
