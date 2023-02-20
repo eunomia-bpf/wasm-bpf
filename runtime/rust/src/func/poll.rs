@@ -16,7 +16,7 @@ use wasmtime::Val;
 use crate::{
     ensure_enough_memory, ensure_program_mut_by_state,
     func::{EINVAL, ENOENT},
-    state::{CallerType, PollWrapper},
+    state::CallerType,
     utils::{CallerUtils, FunctionQuickCall},
 };
 
@@ -58,13 +58,11 @@ extern "C" fn sample_function_wrapper(ctx: *mut c_void, data: *mut c_void, size:
         error!("Failed to write wasm memory: {}", e);
         return 0;
     }
-    if let PollWrapper::Enabled {
-        callback_function_name,
-    } = caller.data().poll_wrapper.clone()
-    {
+    if caller.data().wrapper_called {
         let mut result = [Val::I32(0)];
+        let callback = caller.data().callback_func_name.clone();
         if let Err(err) = caller
-            .get_export(&callback_function_name)
+            .get_export(&callback)
             .unwrap()
             .into_func()
             .unwrap()

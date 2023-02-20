@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context};
 use clap::Parser;
 use flexi_logger::Logger;
 use log_format::my_log_format;
-use state::{AppState, PollWrapper};
+use state::AppState;
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::WasiCtxBuilder;
 
@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
         .inherit_args()
         .with_context(|| anyhow!("Failed to build Wasi Context"))?
         .build();
-    let mut store = Store::new(&engine, AppState::new(wasi));
+    let mut store = Store::new(&engine, AppState::new(wasi, args.callback_export_name));
     let main_module = Module::from_file(&engine, args.wasm_module_file)
         .with_context(|| anyhow!("Failed to read wasm module file"))?;
 
@@ -72,9 +72,9 @@ fn main() -> anyhow::Result<()> {
         wrapper_poll::bpf_buffer_poll_wrapper,
         POLL_WRAPPER_FUNCTION_NAME
     )?;
-    store.data_mut().poll_wrapper = PollWrapper::Enabled {
-        callback_function_name: args.callback_export_name,
-    };
+    // store.data_mut().poll_wrapper = PollWrapper::Enabled {
+    //     callback_function_name: args.callback_export_name,
+    // };
     // linker.
     linker
         .module(&mut store, MAIN_MODULE_NAME, &main_module)
