@@ -14,3 +14,12 @@ clean:
 	$(MAKE) -C runtime/rust clean
 	rm -rf wasm-bpf-rs
 	rm -rf wasm-bpf
+
+install-deps: ## install deps
+	apt update
+	apt-get install libcurl4-openssl-dev libelf-dev clang llvm -y ## libgtest-dev
+
+/opt/wasi-sdk:
+	wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-17/wasi-sdk-17.0-linux.tar.gz
+	tar -zxf wasi-sdk-17.0-linux.tar.gz
+	sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/

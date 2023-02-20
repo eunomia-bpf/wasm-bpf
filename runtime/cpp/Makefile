@@ -45,9 +45,6 @@ build-lib: ## build as a library
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
-install-deps: ## install deps
-	apt update
-	apt-get install libcurl4-openssl-dev libelf-dev clang llvm -y ## libgtest-dev
 
 test: ## run tests quickly with ctest
 	sudo rm -rf build/
@@ -55,10 +52,6 @@ test: ## run tests quickly with ctest
 	cmake --build build
 	cd build/ && sudo ctest -VV
 
-/opt/wasi-sdk:
-	wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-17/wasi-sdk-17.0-linux.tar.gz
-	tar -zxf wasi-sdk-17.0-linux.tar.gz
-	sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/
 
 test-wasm: /opt/wasi-sdk
 	cd test/wasm-apps && ./build.sh
