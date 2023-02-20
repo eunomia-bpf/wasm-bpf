@@ -21,5 +21,7 @@ jobs:
           make /opt/wasi-sdk
     - name: make
       run: make -C runtime/cpp
-    - name: examples
-      run: make -C examples
+    - name: examples with rust runtime
+      run: IMPL=rust make -C examples
+    - name: examples with cpp runtime
+      run: IMPL=cpp make -C examples
