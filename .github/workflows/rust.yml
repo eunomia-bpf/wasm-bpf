@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: make install-deps
     - name: Build
       run: make build-rust
     - name: Upload build result
