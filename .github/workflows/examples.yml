@@ -17,9 +17,9 @@ jobs:
       run:  git submodule update --init --recursive
     - name: install deps
       run: |
-          sudo make install-deps
+          sudo make -C runtime/cpp install-deps
           make /opt/wasi-sdk
     - name: make
-      run: make
+      run: make -C runtime/cpp
     - name: examples
       run: make -C examples
