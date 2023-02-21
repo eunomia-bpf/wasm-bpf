@@ -1,20 +1,15 @@
-generate: install-dep import.wit
+generate:
 	clang -target bpf -g event-def.c -c -o event.def.o
-	btf2wit event.def.o -o event-def.wit --world-name event-def
+	cargo install btf2wit
+	btf2wit event.def.o -o event-def.wit
 	cp *.wit ../wit/
 
-install-dep:
-	cargo install btf2wit
-	
 import.o: import.c
 	gcc import.c -c -o import.o -g 
 	pahole -J import.o
 
 import.wit: import.o
-	btf2wit import.o -o import.wit --world-name import
-	
-	# Currently, WIT doesn't support identifiers with two continuous `-`
-	sed -i 's/--/s-/g' import.wit 
+	btf2wit import.o -o import.wit
 
 host.rs: import.wit
 	wit-bindgen import.wit

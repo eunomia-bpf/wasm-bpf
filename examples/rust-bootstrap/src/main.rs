@@ -1,17 +1,14 @@
 #![no_main]
 
-mod wit_binding {
-    wit_bindgen::generate!("import");
-}
+wit_bindgen_guest_rust::generate!("host");
 use std::{ffi::CStr, slice};
-#[cfg(not(feature = "wasmtime"))]
-use wasm_bpf_binding::binding as binding;
-#[cfg(feature = "wasmtime")]
-use wit_binding as binding;
+
+use wasm_bpf_binding::binding;
 #[export_name = "__main_argc_argv"]
 fn main(_env_json: u32, _str_len: i32) -> i32 {
     // embed and open the bpf object
     let bpf_object = include_bytes!("../bootstrap.bpf.o");
+
     // load the object
     let obj_ptr =
         binding::wasm_load_bpf_object(bpf_object.as_ptr() as u32, bpf_object.len() as i32);

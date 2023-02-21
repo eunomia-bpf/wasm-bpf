@@ -185,14 +185,9 @@ extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
 ```
 
 Compile and run with cargo：
-```console
-$ cargo build --target wasm32-wasi
-```
-- Note: this will produce a wasm binary that can be used to run on the current wasm-bpf (using wasm-micro-runtime, which will put all imported functions at module `$root`) 
-- We are trying `wasmtime`, use `cargo build --target wasm32-wasi --features wasmtime` to produce a binary that can be used under `wasmtime`, together with `wit-bindgen` (See [https://github.com/eunomia-bpf/wasmtime-test](https://github.com/eunomia-bpf/wasmtime-test) for details)
-
 
 ```console
+$ cargo build --target wasi32-wasm
 $ sudo wasm-bpf ./target/wasm32-wasi/debug/rust-helloworld.wasm
 TIME     EXEC  sh               180245  33666   /bin/sh
 TIME     EXEC  which            180246  180245  /usr/bin/which
