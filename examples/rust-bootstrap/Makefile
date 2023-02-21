@@ -1,6 +1,8 @@
 ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's/ppc64le/powerpc/' | sed 's/mips.*/mips/')
-VMLINUX := ../../third_party/vmlinux/$(ARCH)/vmlinux.h
-BPF_HEADERS := ../../third_party/
+THIRD_PARTY := ../../runtime/cpp/third_party
+
+VMLINUX := $(THIRD_PARTY)/vmlinux/$(ARCH)/vmlinux.h
+BPF_HEADERS := $(THIRD_PARTY)/
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
@@ -9,7 +11,7 @@ CFLAGS := -g -Wall
 ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
 CLANG := clang
 LLVM_STRIP := llvm-strip
-BPFTOOL_SRC := ../../third_party/bpftool/src
+BPFTOOL_SRC := $(THIRD_PARTY)/bpftool/src
 BPFTOOL := $(BPFTOOL_SRC)/bpftool
 
 
@@ -49,4 +51,4 @@ build: $(APP).bpf.o
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout --preserve-status -s 2 $(TEST_TIME) ../wasm-bpf rust-bootstrap.wasm
+	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf rust-bootstrap.wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
