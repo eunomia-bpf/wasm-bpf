@@ -25,7 +25,7 @@ macro_rules! ensure_program_mut_by_state {
 macro_rules! ensure_program_mut_by_caller {
     ($caller: expr, $program: expr) => {
         {
-            use crate::ensure_program_mut_by_state;
+            use $crate::ensure_program_mut_by_state;
             ensure_program_mut_by_state!($caller.data_mut(), $program)
         }
     };
@@ -35,7 +35,7 @@ macro_rules! ensure_program_mut_by_caller {
 macro_rules! ensure_c_str {
     ($caller: expr, $var_name: expr) => {
         {
-            use crate::utils::CallerUtils;   
+            use $crate::utils::CallerUtils;   
             match $caller.read_zero_terminated_str($var_name as usize) {
                 Ok(v) => v.to_string(),
                 Err(err) => {
@@ -55,7 +55,7 @@ pub type WasmString = u32;
 #[macro_export]
 macro_rules! ensure_enough_memory {
     ($caller: expr, $pointer:expr, $size: expr, $return_val: expr) => {{
-        use crate::utils::CallerUtils;
+        use $crate::utils::CallerUtils;
         let mut buf = vec![0u8];
         match $caller
             .get_memory()

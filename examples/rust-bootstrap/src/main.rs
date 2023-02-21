@@ -96,7 +96,7 @@ extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
         if event.duration_ns != 0 {
             print!(" ({}ms)", event.duration_ns / 1000000);
         }
-        println!("");
+        println!();
     } else {
         println!(
             "{:<8} {:<5} {:<16} {:<7} {:<7} {}",

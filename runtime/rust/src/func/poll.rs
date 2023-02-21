@@ -35,11 +35,11 @@ pub struct SampleContext {
 impl Default for SampleContext {
     fn default() -> Self {
         Self {
-            wasm_ctx: Default::default(),
+            wasm_ctx: u32::default(),
             store_ptr: null_mut(),
-            callback_index: Default::default(),
-            raw_wasm_data_buffer: Default::default(),
-            max_size: Default::default(),
+            callback_index: u32::default(),
+            raw_wasm_data_buffer: u32::default(),
+            max_size: usize::default(),
         }
     }
 }
@@ -120,7 +120,7 @@ pub fn wasm_bpf_buffer_poll(
             }
         };
         let mut buffer = unsafe { BpfBuffer::bpf_buffer__new(map_ptr as *mut bpf_map) };
-        buffer.bpf_buffer__open(sample_function_wrapper, Default::default());
+        buffer.bpf_buffer__open(sample_function_wrapper, SampleContext::default());
         object.buffer = Some(buffer);
     }
     // modify the context we passed to bpf_buffer__open each time before we call bpf_buffer_poll
@@ -242,7 +242,7 @@ impl Drop for BpfBuffer {
                 perf_buffer__free(s);
             },
             BufferInnerType::RingBuffer(s) => unsafe { ring_buffer__free(s) },
-            BufferInnerType::None => todo!(),
+            BufferInnerType::None => {},
         }
     }
 }

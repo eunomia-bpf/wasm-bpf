@@ -32,7 +32,7 @@ pub fn wasm_attach_bpf_program(
     };
     if let Some(attach_target) = attach_target_str {
         let section_name = program.section();
-        // TODO: support more attach type
+        // More attach types could be added
         if section_name == "sockops" {
             let cgroup_file = match std::fs::OpenOptions::new().read(true).open(&attach_target) {
                 Ok(v) => v,
