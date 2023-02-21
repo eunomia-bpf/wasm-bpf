@@ -18,3 +18,8 @@ CONFIG_DEBUG_INFO_BTF=y
 CONFIG_BPF_LSM=y
 CONFIG_LSM="[other LSMs],bpf"
 ```
+
+go wasm example(need tinygo):
+```sh
+make lsm_go_wasm # will output to go_wasm/lsm.go.wasm
+```

@@ -176,6 +176,7 @@ static int attach_cgroup(struct bpf_program *prog, const char *path) {
                path);
         return -1;
     }
+    close(fd);
     return 0;
 }
 

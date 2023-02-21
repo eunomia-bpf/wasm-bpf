@@ -23,4 +23,3 @@ int path_rmdir(const struct path *dir, struct dentry *dentry) {
 
   return -1;
 }
-
