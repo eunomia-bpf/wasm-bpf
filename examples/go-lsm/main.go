@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"go_wasm/helper"
 	"time"
 	"unsafe"
-	"fmt"
 )
 
 type CString struct {
