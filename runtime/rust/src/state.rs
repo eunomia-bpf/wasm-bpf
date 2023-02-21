@@ -51,7 +51,7 @@ impl AppState {
         Self {
             wasi,
             next_object_id: FIRST_OBJECT_ID,
-            object_map: Default::default(),
+            object_map: HashMap::default(),
             opened_files: vec![],
             opened_links: vec![],
             callback_func_name,
