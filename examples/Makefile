@@ -29,7 +29,7 @@ wasm-bpf:
 			make wasm-bpf-rs \
 			;; \
 		*) \
-			echo "\e[31mNo runtime specified. Set env variable IMPL to either \"rust\" or \"cpp\" to specify which runtime to use\e[0m\n" \
+			echo "\e[31mNo runtime specified. Set env variable IMPL to either \"rust\" or \"cpp\" to specify which runtime to use\e[0m" && \
 			exit 1 \
 			;; \
 	esac
