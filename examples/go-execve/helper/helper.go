@@ -10,5 +10,6 @@ func WasmAttachBpfProgram(int64, int32, int32) int32
 //export wasm_bpf_map_fd_by_name
 func WasmBpfMapFdByName(int64, int32) int32
 
+//go:wasm-module callback-wrapper
 //export wasm_bpf_buffer_poll
-func PerfBufferPoll(int64, int32, func(ctx, data, size int32) int32, int32, int32, int32, int32) int32
+func PerfBufferPoll(int64, int32, int32, int32, int32, int32) int32

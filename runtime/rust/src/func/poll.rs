@@ -45,7 +45,7 @@ impl Default for SampleContext {
 }
 
 pub type SampleCallbackParams = (u32, u32, u32);
-pub type SampleCallbackReturn = ();
+pub type SampleCallbackReturn = i32;
 pub type SampleCallbackWrapper = extern "C" fn(*mut c_void, *mut c_void, u64) -> i32;
 extern "C" fn sample_function_wrapper(ctx: *mut c_void, data: *mut c_void, size: u64) -> i32 {
     let ctx = unsafe { &*(ctx as *mut SampleContext) };
@@ -81,12 +81,17 @@ extern "C" fn sample_function_wrapper(ctx: *mut c_void, data: *mut c_void, size:
             return 0;
         }
     } else {
-        if let Err(e) = caller.perform_indirect_call::<SampleCallbackParams, SampleCallbackReturn>(
+        match caller.perform_indirect_call::<SampleCallbackParams, SampleCallbackReturn>(
             ctx.callback_index,
             (ctx.wasm_ctx, ctx.raw_wasm_data_buffer, size as u32),
         ) {
-            error!("Failed to perform indirect call when polling: {}", e);
-            return 0;
+            Ok(v) => {
+                return v;
+            }
+            Err(e) => {
+                error!("Failed to perform indirect call when polling: {}", e);
+                return 0;
+            }
         }
     }
 
@@ -242,7 +247,7 @@ impl Drop for BpfBuffer {
                 perf_buffer__free(s);
             },
             BufferInnerType::RingBuffer(s) => unsafe { ring_buffer__free(s) },
-            BufferInnerType::None => {},
+            BufferInnerType::None => {}
         }
     }
 }

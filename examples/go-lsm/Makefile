@@ -15,7 +15,7 @@ CLANG := clang
 LLVM_STRIP := llvm-strip
 BPFTOOL_SRC := $(THIRD_PARTY)/bpftool/src
 BPFTOOL := $(BPFTOOL_SRC)/bpftool
-
+TINYGO ?= $(shell which tinygo)
 
 # Get Clang's default includes on this system. We'll explicitly add these dirs
 # to the includes list when compiling with `-target bpf` because otherwise some
@@ -28,7 +28,7 @@ BPFTOOL := $(BPFTOOL_SRC)/bpftool
 CLANG_BPF_SYS_INCLUDES = $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 
-APP = execve
+APP = lsm
 
 .PHONY: all
 all: $(APP).wasm $(APP).bpf.o
@@ -46,22 +46,8 @@ clean:
 $(BPFTOOL):
 	cd $(BPFTOOL_SRC) && make
 
-# generate c skeleton
-%.skel.h: %.bpf.o $(BPFTOOL)
-	$(BPFTOOL) gen skeleton -j $< > $@
-
-# generate wasm bpf header for pass struct event
-$(APP).wasm.h: $(APP).bpf.o $(BPFTOOL)
-	ecc $(APP).h --header-only
-	$(BPFTOOL) btf dump file $< format c -j > $@
-
-# compile for wasm with wasi-sdk
-WASI_CLANG = /opt/wasi-sdk/bin/clang
-WASI_CFLAGS = -O2 --sysroot=/opt/wasi-sdk/share/wasi-sysroot -Wl,--allow-undefined,--export-table
-
-$(APP).wasm: $(APP).c $(APP).skel.h
-	ln -f -s ../../wasm-sdk/c/libbpf-wasm.h libbpf-wasm.h
-	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $< 
+$(APP).wasm: main.go $(APP).bpf.o
+	$(TINYGO) build -target wasi -o $@ $<
 
 TEST_TIME := 3
 .PHONY: test
