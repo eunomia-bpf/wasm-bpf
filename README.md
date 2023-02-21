@@ -1,4 +1,4 @@
-![logo](test/asserts/logo.png)
+![logo](docs/logo.png)
 
 # 📦 Wasm-bpf: Wasm library and toolchain for eBPF
 
@@ -26,16 +26,16 @@ For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
 
 - host side: A simple runtime implementation example
-  - see [src](src) and [include](include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+  - see [src](runtime/cpp/src) and [include](runtime/cpp/include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
   - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
 - wasm side: toolchains and libraries
-  - a [`libbpf-wasm`](wasm-sdk/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
+  - a [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
   - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
   - More languages support(`Rust`, `Go`, etc) is on the way.
 
 For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).  The figure below shows the overall interaction between the eBPF and Wasm runtimes:
 
-![wasi-bpf](test/asserts/wasm-bpf-no-bcc.png)
+![wasi-bpf](docs/wasm-bpf-no-bcc.png)
 
 A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
 
