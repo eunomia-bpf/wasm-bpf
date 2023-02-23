@@ -8,14 +8,14 @@
 
 [中文文档](README_zh.md)
 
-`Wasm-bpf` is a WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). It can help you build almost every eBPF programs or usecases to `Wasm`.
+`Wasm-bpf` is a WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf). It can help you build almost every eBPF programs or usecases to `Wasm` and execute them.
 
 ## Features
 
 - **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types.
 - **`High performance`**: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
 - **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings. Write your eBPF programs in `C/C++`, `Rust`, `Go` and compile to Wasm.
-- **`Ultralightweight`**: the sample runtime has only `1.5 MB` in binary size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
+- **`Ultralightweight`**: the miminal runtime has only `1.5 MB` in binary size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
 
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to Wasm, covering the use cases from `tracing`, `networking` to `security`.
 
@@ -54,47 +54,12 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 
 ## build the runtime
 
-The dependencies are libbpf and wasm-micro-runtime only, they are
-registered as git submodules.
+We have two types of runtime samples:
 
-```sh
-git submodule update --init --recursive
-```
+- A C/C++ runtime example, which is a minimal runtime based on WAMR. see [runtime/cpp](../runtime/cpp) for more details.
+- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/rust](../runtime/rust) for more details.
 
-### Install Dependencies
-
-You will need `clang`, `libelf` and `zlib` to build the examples,
-package names may vary across distros.
-
-On Ubuntu/Debian, you need:
-
-```shell
-apt install clang libelf1 libelf-dev zlib1g-dev
-```
-
-On CentOS/Fedora, you need:
-
-```shell
-dnf install clang elfutils-libelf elfutils-libelf-devel zlib-devel
-```
-
-### Build runtime as a executable tool
-
-Run `make` to build the runtime, which will be placed in the `build`
-directory. `cmake` is required to build the runtime.
-
-```sh
-make build
-```
-
-### Build runtime as a library
-
-```sh
-make build-lib
-```
-
-You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
-to build and run the examples.
+The runtime can be built as a library or a standalone executable. see [docs/build.md](docs/build.md) to build the runtimes.
 
 ## LICENSE
 

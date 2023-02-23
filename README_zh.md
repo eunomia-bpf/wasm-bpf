@@ -33,39 +33,11 @@
 
 ## 构建运行时
 
-依赖只有 git submodule 里面的 libbpf 和 wasm-micro-runtime
-
-```sh
-git submodule update --init --recursive
-```
-
-## 安装依赖
-
-构建示例需要用到 `clang`, `libelf` 和 `zlib` 。包名在不同的发行版间可能不同。
-
-在 Ubuntu/Debian, 需要:
-
-```shell
-apt install clang libelf1 libelf-dev zlib1g-dev
-```
-
-在 CentOS/Fedora, 需要:
-
-```shell
-dnf install clang elfutils-libelf elfutils-libelf-devel zlib-devel
-```
-
-运行 `make` 来构建这些示例。 构建结果会被放在 `build` 文件夹里。 构建运行时需要用到 `cmake`。
-
-```sh
-make build
-```
-
-可以查阅 [CI](.github/workflows/c-cpp.yml) 来详细了解如何编译运行这些示例。
+请参考 [docs/build.md](docs/build.md)。
 
 ## Wasm-bpf 总览
 
-![wasi-bpf](test/asserts/wasm-bpf-no-bcc.png)
+![wasi-bpf](docs/wasm-bpf-no-bcc.png)
 
 Wasm 模块可以同时加载和控制多个 eBPF 程序， 并且能够调用或者控制（通过[组件模型](https://github.com/WebAssembly/component-model)）其他语言编写的 Wasm 模块来处理数据。
 
