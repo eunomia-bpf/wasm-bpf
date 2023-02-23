@@ -8,7 +8,7 @@
 
 [中文文档](README_zh.md)
 
-`Wasm-bpf` is a WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf). It can help you build almost every eBPF programs or usecases to `Wasm` and execute them.
+`Wasm-bpf` is a WebAssembly eBPF library, toolchain and runtime powered by [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(Compile Once – Run Everywhere) [libbpf](https://github.com/libbpf/libbpf). It can help you build almost every eBPF programs or usecases to `Wasm` with nearly zero modification, and run them cross platforms with Wasm sandbox.
 
 ## Features
 
@@ -26,12 +26,12 @@ For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
 
 - host side: A simple runtime implementation example
-  - see [src](runtime/cpp/src) and [include](runtime/cpp/include) directories, which would be a sample runtime built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime).
+  - see [runtime/cpp](runtime/cpp), which would be a sample runtime in `C++` built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). Another more complex runtime implement in `Rust` is [runtime/rust](runtime/rust), based on [Wasmtime](https://github.com/bytecodealliance/wasmtime).
   - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
 - wasm side: toolchains and libraries
   - a [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
   - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
-  - More languages support(`Rust`, `Go`, etc) is on the way.
+  - `Rust`, `Go` and other language support is similar to the `C/C++` support.
 
 For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).  The figure below shows the overall interaction between the eBPF and Wasm runtimes:
 
