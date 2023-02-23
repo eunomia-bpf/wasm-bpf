@@ -142,7 +142,7 @@ Tracing run queue latency... Hit Ctrl-C to end.
       2048 -> 4095       : 1        |                                        |
 ```
 
-`runqlat` is alse an example of a simple (but realistic) BPF application. It
+`runqlat` is also an example of a simple (but realistic) BPF application. It
 would show a more complex example of BPF program, which contains more than
 one file, and directly access the kernel maps from the user space instead of
 polling the kernel ring buffer.
