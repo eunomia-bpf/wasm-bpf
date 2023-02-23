@@ -14,10 +14,10 @@
 
 - **`General purpose`**: provide most abilities from eBPF to Wasm, `polling` from the ring buffer or perf buffer, bidirectional communications between `kernel` eBPF and `userspace` Wasm using `maps`, dynamically `loading`, `attaching` or `detaching`, etc. Supports a large number of eBPF program types and map types.
 - **`High performance`**: No `serialization` overhead for complex data types, using `shared memory` to avoid copy overhead between host and Wasm.
-- **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings.
+- **`Easy to use`**: provide a similar developing experience as the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap), `auto generate` the Wasm-eBPF skeleton headers and type definitions for bindings. Write your eBPF programs in `C/C++`, `Rust`, `Go` and compile to Wasm.
 - **`Ultralightweight`**: the sample runtime has only `1.5 MB` in binary size. Compiled Wasm module would be only `~90K`. With the same toolchain, you can easily build your own Wasm-eBPF runtime in any languages and platforms!
 
-See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to Wasm, covering the use cases from `tracing`, `networking` to `security`.
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to Wasm, covering the use cases from `tracing`, `networking` to `security`.
 
 For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org/) images, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
 
@@ -43,11 +43,12 @@ We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI
 
 ## 🔨 Examples
 
-See the [examples](examples) directory for examples of eBPF programs written in C, Rust and compiled to WASM.
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
 
-- [bootstrap](examples/bootstrap) and [runqlat](examples/runqlat) `tracing examples`
-- [rust-bootstrap](examples/rust-bootstrap) `tracing examples`
-- [lsm](examples/lsm) `security example`
+- [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap) `tracing examples`
+- [runqlat](examples/runqlat) `tracing examples`
+- [go-execve](examples/go-execve) `tracing examples`
+- [lsm](examples/lsm) and  `security example`
 - [sockfilter](examples/sockfilter) `networking example`
 - [sockops](examples/sockops) `networking example`
 
@@ -101,7 +102,6 @@ MIT
 
 ## 🔗 Links
 
-- GitHub Repository: https://github.com/eunomia-bpf/wasm-bpf
 - eunomia-bpf project: simplify and enhance eBPF with CO-RE and WebAssembly https://github.com/eunomia-bpf/eunomia-bpf
 - documents and blogs: https://eunomia-bpf.github.io/blog/ebpf-wasm.html
 - CO-RE (Compile Once – Run Everywhere): https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html
