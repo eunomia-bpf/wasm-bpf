@@ -63,7 +63,7 @@ The runtime can be built as a library or a standalone executable. see [docs/buil
 
 ## LICENSE
 
-MIT
+[MIT LICENSE](LICENSE)
 
 ## 🔗 Links
 
