@@ -21,26 +21,6 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 
 For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org/) images, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
 
-## How it works
-
-The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
-
-- host side: A simple runtime implementation example
-  - see [runtime/cpp](runtime/cpp), which would be a sample runtime in `C++` built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). Another more complex runtime implement in `Rust` is [runtime/rust](runtime/rust), based on [Wasmtime](https://github.com/bytecodealliance/wasmtime).
-  - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
-- wasm side: toolchains and libraries
-  - a [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
-  - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
-  - `Rust`, `Go` and other language support is similar to the `C/C++` support.
-
-For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).  The figure below shows the overall interaction between the eBPF and Wasm runtimes:
-
-![wasi-bpf](docs/wasm-bpf-no-bcc.png)
-
-A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
-
-We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
-
 ## 🔨 Examples
 
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
@@ -78,6 +58,26 @@ Tracing run queue latency... Hit Ctrl-C to end.
       1024 -> 2047       : 0        |                                        |
       2048 -> 4095       : 1        |                                        |
 ```
+
+## How it works
+
+The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
+
+- host side: A simple runtime implementation example
+  - see [runtime/cpp](runtime/cpp), which would be a sample runtime in `C++` built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). Another more complex runtime implement in `Rust` is [runtime/rust](runtime/rust), based on [Wasmtime](https://github.com/bytecodealliance/wasmtime).
+  - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
+- wasm side: toolchains and libraries
+  - a [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
+  - a [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool) tool to generate the Wasm-eBPF `skeleton` headers, and `C struct definitions` for passing data between the host and Wasm guest without serialization.
+  - `Rust`, `Go` and other language support is similar to the `C/C++` support.
+
+For details compile process, please refer to the [examples/bootstrap/README.md](examples/bootstrap/README.md).  The figure below shows the overall interaction between the eBPF and Wasm runtimes:
+
+![wasi-bpf](docs/wasm-bpf-no-bcc.png)
+
+A Wasm module could load and control multiple eBPF programs at the same time, and can call another Wasm module written in other languages to process the data or control with [the component model](https://github.com/WebAssembly/component-model).
+
+We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
 
 ## Build the runtime
 
