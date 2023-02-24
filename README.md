@@ -52,7 +52,7 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 - [sockfilter](examples/sockfilter) `networking example`
 - [sockops](examples/sockops) `networking example`
 
-## build the runtime
+## Build the runtime
 
 We have two types of runtime samples:
 
