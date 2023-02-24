@@ -158,7 +158,7 @@ macro_rules! add_bind_function_with_module {
 #[macro_export]
 macro_rules! add_bind_function {
     ($linker: expr, $func: expr) => {
-        add_bind_function_with_module!($linker, "env", $func)
+        add_bind_function_with_module!($linker, "wasm_bpf", $func)
     };
 }
 
