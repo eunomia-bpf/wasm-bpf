@@ -7,7 +7,7 @@ We have two types of runtime examples:
 
 A new runtime is easy to implement with only a few hundred lines of code, in any language, using any wasm runtime or any ebpf user space library.
 
-## Build the C++ minimal runtime based on WAMR[^wamr]
+## Build the C++ minimal runtime based on WAMR[^1]
 
 The dependencies are libbpf and wasm-micro-runtime only, they are
 registered as git submodules.
@@ -52,7 +52,9 @@ make build-lib
 You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
 to build and run the examples.
 
-## Build the Rust runtime based on Wasmtime
+[^1]: WAMR (WebAssembly Micro Runtime): https://github.com/bytecodealliance/wasm-micro-runtime
+
+## Build the Rust runtime based on Wasmtime[^2]
 
 install rust toolchain
 
@@ -68,3 +70,5 @@ directory.
 ```sh
 make build
 ```
+
+[^2]: wasmtime: https://github.com/bytecodealliance/wasmtime

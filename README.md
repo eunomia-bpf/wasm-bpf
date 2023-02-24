@@ -45,12 +45,39 @@ We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI
 
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
 
-- [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap) `tracing examples`
-- [runqlat](examples/runqlat) `tracing examples`
-- [go-execve](examples/go-execve) `tracing examples`
-- [lsm](examples/lsm) and  `security example`
-- [sockfilter](examples/sockfilter) `networking example`
-- [sockops](examples/sockops) `networking example`
+`tracing examples`
+
+- [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap): trace process exec and exit
+- [runqlat](examples/runqlat): summarizes scheduler run queue latency as a histogram
+- [execve](examples/execve) and [go-execve](examples/go-execve): trace execve syscall
+
+`security example`
+- [lsm](examples/lsm) and  [go-lsm](examples/go-lsm): check the permission to remove a directory
+
+`networking example`
+- [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
+- [sockops](examples/sockops): Add the pid int tcp option in syn packet.
+
+An example output of runqlat:
+
+```console
+$ sudo ./wasm-bpf runqlat.wasm 1
+Tracing run queue latency... Hit Ctrl-C to end.
+
+     usecs               : count    distribution
+         0 -> 1          : 72       |*****************************           |
+         2 -> 3          : 93       |*************************************   |
+         4 -> 7          : 98       |****************************************|
+         8 -> 15         : 96       |*************************************** |
+        16 -> 31         : 38       |***************                         |
+        32 -> 63         : 4        |*                                       |
+        64 -> 127        : 5        |**                                      |
+       128 -> 255        : 6        |**                                      |
+       256 -> 511        : 0        |                                        |
+       512 -> 1023       : 0        |                                        |
+      1024 -> 2047       : 0        |                                        |
+      2048 -> 4095       : 1        |                                        |
+```
 
 ## Build the runtime
 
