@@ -69,9 +69,6 @@ See [examples/rust-bootstrap](examples/rust-bootstrap) for more details.
 This program summarizes scheduler run queue latency as a histogram, showing
 how long tasks spent waiting their turn to run on-CPU.
 
-This program summarizes scheduler run queue latency as a histogram, showing
-how long tasks spent waiting their turn to run on-CPU.
-
 ```console
 $ sudo ./wasm-bpf runqlat.wasm -h
 Summarize run queue (scheduler) latency as a histogram.
