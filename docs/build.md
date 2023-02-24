@@ -52,7 +52,7 @@ make build-lib
 You may refer to [CI](.github/workflows/c-cpp.yml) for more details on how
 to build and run the examples.
 
-## build the Rust runtime based on Wasmtime
+## Build the Rust runtime based on Wasmtime
 
 install rust toolchain
 
