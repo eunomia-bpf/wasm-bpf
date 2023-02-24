@@ -7,7 +7,7 @@ We have two types of runtime examples:
 
 A new runtime is easy to implement with only a few hundred lines of code, in any language, using any wasm runtime or any ebpf user space library.
 
-## build the Cpp minimal runtime based on WAMR
+## Build the C++ minimal runtime based on WAMR[^wamr]
 
 The dependencies are libbpf and wasm-micro-runtime only, they are
 registered as git submodules.
