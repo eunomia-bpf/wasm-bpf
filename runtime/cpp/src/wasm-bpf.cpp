@@ -325,7 +325,7 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
     };
     init_args.mem_alloc_type = Alloc_With_System_Allocator;
     init_args.n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
-    init_args.native_module_name = "env";
+    init_args.native_module_name = "wasm_bpf";
     init_args.native_symbols = native_symbols;
     // init runtime and wasi
     if (!wasm_runtime_full_init(&init_args)) {

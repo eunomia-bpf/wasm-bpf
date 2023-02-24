@@ -11,7 +11,7 @@ pub fn wasm_bpf_map_operate(
     flags_s: Uint64T,
 ) -> i32 {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_bpf_map_operate"]
             fn wit_import(_: i32, _: i32, _: i64, _: i64, _: i64, _: i64) -> i32;
@@ -36,7 +36,7 @@ pub fn wasm_bpf_buffer_poll(
     timeout_ms: i32,
 ) -> i32 {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_bpf_buffer_poll"]
             fn wit_import(_: i64, _: i32, _: i32, _: i32, _: i32, _: i32, _: i32) -> i32;
@@ -59,7 +59,7 @@ pub fn wasm_attach_bpf_program(
     attach_target: u32,
 ) -> i32 {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_attach_bpf_program"]
             fn wit_import(_: i64, _: i32, _: i32) -> i32;
@@ -74,7 +74,7 @@ pub fn wasm_attach_bpf_program(
 }
 pub fn wasm_load_bpf_object(obj_buf: u32, obj_buf_sz: i32) -> BpfObjectSkel {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_load_bpf_object"]
             fn wit_import(_: i32, _: i32) -> i64;
@@ -88,7 +88,7 @@ pub fn wasm_load_bpf_object(obj_buf: u32, obj_buf_sz: i32) -> BpfObjectSkel {
 }
 pub fn wasm_close_bpf_object(obj: BpfObjectSkel) -> i32 {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_close_bpf_object"]
             fn wit_import(_: i64) -> i32;
@@ -99,7 +99,7 @@ pub fn wasm_close_bpf_object(obj: BpfObjectSkel) -> i32 {
 }
 pub fn wasm_bpf_map_fd_by_name(obj: BpfObjectSkel, name: u32) -> i32 {
     unsafe {
-        #[link(wasm_import_module = "env")]
+        #[link(wasm_import_module = "wasm_bpf")]
         extern "C" {
             #[link_name = "wasm_bpf_map_fd_by_name"]
             fn wit_import(_: i64, _: i32) -> i32;
