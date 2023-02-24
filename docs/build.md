@@ -1,4 +1,4 @@
-# build the runtime and examples
+# Build the runtime and examples
 
 We have two types of runtime examples:
 
