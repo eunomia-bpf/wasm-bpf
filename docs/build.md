@@ -22,7 +22,7 @@ cd runtime/cpp
 You will need `clang`, `libelf` and `zlib` to build the examples,
 package names may vary across distros.
 
-On Ubuntu/Debian, you need:
+on Ubuntu/Debian, you need:
 
 ```shell
 sudo apt install clang libelf1 libelf-dev zlib1g-dev
