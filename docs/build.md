@@ -28,7 +28,7 @@ On Ubuntu/Debian, you need:
 sudo apt install clang libelf1 libelf-dev zlib1g-dev
 ```
 
-On CentOS/Fedora, you need:
+on CentOS / Fedora, you need:
 
 ```shell
 sudo dnf install clang elfutils-libelf elfutils-libelf-devel zlib-devel
