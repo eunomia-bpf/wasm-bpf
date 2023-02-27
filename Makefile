@@ -23,3 +23,7 @@ install-deps: ## install deps
 	wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-17/wasi-sdk-17.0-linux.tar.gz
 	tar -zxf wasi-sdk-17.0-linux.tar.gz
 	sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/
+
+test:
+	rm -rf runtime/cpp/build
+	cd runtime/cpp && mkdir build && cd build && cmake .. && make
