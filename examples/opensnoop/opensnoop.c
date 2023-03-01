@@ -4,8 +4,6 @@
 //
 // Based on opensnoop(8) from BCC by Brendan Gregg and others.
 // 14-Feb-2020   Brendan Gregg   Created this.
-// #include <argp.h>
-// #include <signal.h>
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,7 +15,7 @@
 #include "libbpf-wasm.h"
 #include "opensnoop.h"
 #include "opensnoop.skel.h"
-// #include "trace_helpers.h"
+#include "trace_helpers.h"
 
 #include <inttypes.h>
 
@@ -51,14 +49,6 @@ static struct env {
     bool failed;
     char* name;
 } env = {.uid = INVALID_UID};
-
-static unsigned long long get_ktime_ns(void)
-{
-	struct timespec ts;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
-}
 
 static int handle_event(void* ctx, void* data, size_t data_sz) {
     const struct event* e = data;
@@ -122,12 +112,12 @@ int main(int argc, char** argv) {
     obj->rodata->targ_failed = env.failed;
 
     /* aarch64 and riscv64 don't have open syscall */
-    // if (!tracepoint_exists("syscalls", "sys_enter_open")) {
-    //     bpf_program__set_autoload(
-    //         obj->progs.tracepoint__syscalls__sys_enter_open, false);
-    //     bpf_program__set_autoload(
-    //         obj->progs.tracepoint__syscalls__sys_exit_open, false);
-    // }
+    if (!tracepoint_exists("syscalls", "sys_enter_open")) {
+        bpf_program__set_autoload(
+            obj->progs.tracepoint__syscalls__sys_enter_open, false);
+        bpf_program__set_autoload(
+            obj->progs.tracepoint__syscalls__sys_exit_open, false);
+    }
 
     err = opensnoop_bpf__load(obj);
     if (err) {
