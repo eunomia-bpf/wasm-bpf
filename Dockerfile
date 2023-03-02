@@ -1,11 +1,10 @@
 FROM ubuntu:22.04
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libelf1 \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY ./ /root
+COPY ./runtime/rust/target/release/wasm-bpf-rs /root/wasm-bpf
 
 WORKDIR /root
 
-RUN apt-get update && \
-    apt-get -y install gcc libelf-dev --no-install-recommends && \
-    apt-get clean
-
-CMD ["/bin/bash"]
+ENTRYPOINT ["./wasm-bpf"]
