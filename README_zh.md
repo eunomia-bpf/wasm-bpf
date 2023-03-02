@@ -8,6 +8,16 @@
 
 Wasm-bpf 是一个由 [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(一次编写 – 到处运行) [libbpf](https://github.com/libbpf/libbpf) libbpf 驱动的 WebAssembly eBPF 库、工具链和运行时。它可以帮助您几乎不用修改地构建几乎所有的 eBPF 程序或用例到 Wasm 中，并在 Wasm 沙箱中跨平台运行。
 
+## 简介
+
+`WebAssembly`（简称Wasm）是一种可执行代码的便携式二进制格式。代码在一个内存安全的沙盒环境中以接近本机速度执行，具有明确定义的资源限制和一个 API ，用于与嵌入式主机环境（例如代理）进行通信。
+
+`wasm-bpf` 项目结合了 Wasm 和 eBPF 技术，提高了eBPF应用程序的性能和可编程性。它提供了一个库和工具链，用于将多种语言编写的 eBPF 应用编译成 Wasm，并提供运行时环境以在安全的沙箱中运行这些程序。
+
+使用 wasm-bpf，用户可以动态加载和安全地执行用户自定义或社区贡献的 Wasm-eBPF 代码作为插件，例如在他们的网络相关软件产品，或可观测性平台中。这其中 eBPF 使得数据收集高效可扩展，同时 Wasm 也允许对这些数据进行高级处理和分析。
+
+此外，它使开发人员能够使用熟悉的语言，如 C/C ++，Rust，Go 和其他 30 多种能编译到 Wasm 的编程语言编写 eBPF 程序，并轻松地在不同的Linux发行版中部署它们。此外，利用 Wasm 的生态和工具链，云提供商可以利用 wasm-bpf 为其客户提供安全且高性能的环境来开发和部署 eBPF 应用程序。
+
 ## 功能
 
 - `通用性`: 提供了从 eBPF 到 Wasm 的大多数能力，包括从`环形缓冲区`或 `perf 缓冲区`进行轮询，使用 `maps` 在内核 eBPF 和用户空间 Wasm 之间进行双向通信，动态加载、挂载到 hook 执行等。支持大量的 eBPF 程序类型和 `maps` 类型。
