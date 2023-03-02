@@ -40,6 +40,13 @@ jobs:
             sudo dpkg -i tinygo_0.27.0_amd64.deb
       - name: make
         run: make -C runtime/cpp
+      - name: Install rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+      - name: examples with rust runtime
+        run: IMPL=rust make -C examples
       - name: examples with cpp runtime
         run: IMPL=cpp  make -C examples
 
