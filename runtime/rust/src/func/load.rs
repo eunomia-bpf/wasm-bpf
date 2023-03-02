@@ -8,6 +8,7 @@ use crate::{
 
 use super::WasmPointer;
 
+/// load a bpf object from memory into the kernel
 pub fn wasm_load_bpf_object(
     mut caller: CallerType,
     obj_buf: WasmPointer,

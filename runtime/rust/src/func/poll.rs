@@ -165,7 +165,6 @@ impl BufferInnerType {
 pub struct BpfBuffer {
     pub events: *mut bpf_map,
     pub inner: BufferInnerType,
-    // pub host_ctx: *mut c_void,
     pub map_type: bpf_map_type,
     pub host_sample_fn: Option<SampleCallbackWrapper>,
     pub wasm_sample_fn: u32,

@@ -1,9 +1,10 @@
 use log::debug;
 
-use crate::{state::CallerType, ensure_c_str, ensure_program_mut_by_caller};
+use crate::{ensure_c_str, ensure_program_mut_by_caller, state::CallerType};
 
 use super::{BpfObjectType, WasmString};
 
+/// get map fd by name from a bpf object
 pub fn wasm_bpf_map_fd_by_name(
     mut caller: CallerType,
     program: BpfObjectType,

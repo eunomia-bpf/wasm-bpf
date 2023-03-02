@@ -1,13 +1,12 @@
-
 pub const EINVAL: i32 = 22;
 pub const ENOENT: i32 = 2;
 
-pub mod poll;
-pub mod load;
-pub mod close;
 pub mod attach;
+pub mod close;
 pub mod fd_by_name;
+pub mod load;
 pub mod map_operate;
+pub mod poll;
 pub mod wrapper_poll;
 #[macro_export]
 macro_rules! ensure_program_mut_by_state {
@@ -23,34 +22,29 @@ macro_rules! ensure_program_mut_by_state {
 }
 #[macro_export]
 macro_rules! ensure_program_mut_by_caller {
-    ($caller: expr, $program: expr) => {
-        {
-            use $crate::ensure_program_mut_by_state;
-            ensure_program_mut_by_state!($caller.data_mut(), $program)
-        }
-    };
+    ($caller: expr, $program: expr) => {{
+        use $crate::ensure_program_mut_by_state;
+        ensure_program_mut_by_state!($caller.data_mut(), $program)
+    }};
 }
 
 #[macro_export]
 macro_rules! ensure_c_str {
-    ($caller: expr, $var_name: expr) => {
-        {
-            use $crate::utils::CallerUtils;   
-            match $caller.read_zero_terminated_str($var_name as usize) {
-                Ok(v) => v.to_string(),
-                Err(err) => {
-                    log::debug!("Failed to read `{}`: {}", stringify!($var_name), err);
-                    return -1;
-                }
+    ($caller: expr, $var_name: expr) => {{
+        use $crate::utils::CallerUtils;
+        match $caller.read_zero_terminated_str($var_name as usize) {
+            Ok(v) => v.to_string(),
+            Err(err) => {
+                log::debug!("Failed to read `{}`: {}", stringify!($var_name), err);
+                return -1;
             }
         }
-    };
+    }};
 }
 
 pub type WasmPointer = u32;
 pub type BpfObjectType = u64;
 pub type WasmString = u32;
-
 
 #[macro_export]
 macro_rules! ensure_enough_memory {

@@ -31,8 +31,6 @@ struct CommandArgs {
     wasm_module_file: String,
     #[arg(long, help = "Display more logs")]
     verbose: bool,
-    // #[arg(short = 'w', long, help = "Enable polyfill wrapper")]
-    // enable_wrapper: bool,
     #[arg(short = 'm', long, help = "Wrapper module name", default_value_t = String::from("callback-wrapper"))]
     wrapper_module_name: String,
     #[arg(short = 'c', long, help = "Callback export name", default_value_t = String::from("go-callback"))]
@@ -78,10 +76,6 @@ fn main() -> anyhow::Result<()> {
         wrapper_poll::bpf_buffer_poll_wrapper,
         POLL_WRAPPER_FUNCTION_NAME
     )?;
-    // store.data_mut().poll_wrapper = PollWrapper::Enabled {
-    //     callback_function_name: args.callback_export_name,
-    // };
-    // linker.
     linker
         .module(&mut store, MAIN_MODULE_NAME, &main_module)
         .with_context(|| anyhow!("Failed to link main module"))?;
