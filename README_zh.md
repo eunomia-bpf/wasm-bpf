@@ -4,7 +4,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf)
 [![DeepSource](https://deepsource.io/gh/eunomia-bpf/wasm-bpf.svg/?label=active+issues&show_trend=true&token=rcSI3J1-gpwLIgZWtKZC-N6C)](https://deepsource.io/gh/eunomia-bpf/wasm-bpf/?ref=repository-badge)
 
-[中文文档](README_zh.md)
+[中文文档](README_zh.md) [Gitee](https://gitee.com/eunomia-bpf/wasm-bpf) [Github](https://github.com/eunomia-bpf/wasm-bpf)
 
 Wasm-bpf 是一个由 [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html)(一次编写 – 到处运行) [libbpf](https://github.com/libbpf/libbpf) libbpf 驱动的 WebAssembly eBPF 库、工具链和运行时。它可以帮助您几乎不用修改地构建几乎所有的 eBPF 程序或用例到 Wasm 中，并在 Wasm 沙箱中跨平台运行。
 
@@ -18,19 +18,6 @@ Wasm-bpf 是一个由 [CO-RE](https://facebookmicrosites.github.io/bpf/blog/2020
 请参阅 [examples](examples) 目录中以 C、Rust、Go 编写的编译为 Wasm 的 eBPF 程序示例，覆盖了从跟踪、网络到安全的各种用例。
 
 有关使用 OCI 镜像分发、动态加载、运行 Wasm-eBPF 程序的工具，请参阅 [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) 仓库。
-
-## 如何工作？
-
-`wasm-bpf` 运行时需要两个部分: `主机侧`(Wasm 运行时之外) 以及 `Wasm 客户侧`(Wasm 运行时内)。
-
-- host 侧: 见 [src](src) 以及 [include](include) 文件夹。 主机侧是一个构建在 [libbpf](https://github.com/libbpf/libbpf) 和 [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) 之上的运行时。
-  - 使用同一套工具链，任何人用任何 wasm 运行时或者任何 ebpf 用户态库，以及任何语言，都可以在两三百行三四百行内轻松实现一套 wasm+ebpf 运行时平台，运行几乎所有的 ebpf 应用场景。
-- wasm 侧:
-  - 一个用于给 Wasm 客户侧 `C/C++` 代码提供 libbpf API的头文件库([`libbpf-wasm`](wasm-sdk/libbpf-wasm.h))。
-  - 一个用来生成 Wasm-eBPF `skeleton` 头文件以及生成用于在主机侧和 Wasm 客户侧传递数据的 C 结构体定义的 [`bpftool`](https://github.com/eunomia-bpf/bpftool/tree/wasm-bpftool)。
-  - 更多编程语言支持(比如 `Rust`、 `Go` 等)还在开发中。
-
-对于更详细的编译过程, 请查阅 [examples/bootstrap/README.md](examples/bootstrap/README.md)。
 
 ## 🔨 示例
 
