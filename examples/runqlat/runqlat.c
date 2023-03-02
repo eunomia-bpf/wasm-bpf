@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 	int err;
 	int idx, cg_map_fd;
 	int cgfd = -1;
-	
+
 	// parse the args manually for demo purpose
     if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         print_usage();
@@ -124,6 +124,9 @@ int main(int argc, char **argv)
 		(env.per_process && env.per_pidns)) {
 		fprintf(stderr, "pidnss, pids, tids cann't be used together.\n");
 		return 1;
+	}
+	if (!env.interval) {
+		env.interval = 1;
 	}
 
 	obj = runqlat_bpf__open();

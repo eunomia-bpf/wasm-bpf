@@ -34,7 +34,6 @@ For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
 
 `tracing examples`
-
 - [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap): trace process exec and exit
 - [runqlat](examples/runqlat): summarizes scheduler run queue latency as a histogram
 - [execve](examples/execve) and [go-execve](examples/go-execve): trace execve syscall
@@ -46,10 +45,13 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 - [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
 - [sockops](examples/sockops): Add the pid int tcp option in syn packet.
 
-An example output of runqlat:
+Running the `runqlat` example with docker:
 
 ```console
-$ sudo ./wasm-bpf runqlat.wasm 1
+$ wget https://eunomia-bpf.github.io/wasm-bpf/examples/runqlat/runqlat.wasm
+$ docker run --rm -it --privileged \
+  -v $(pwd):/examples \
+  ghcr.io/eunomia-bpf/wasm-bpf:latest /examples/runqlat.wasm
 Tracing run queue latency... Hit Ctrl-C to end.
 
      usecs               : count    distribution

@@ -8,9 +8,10 @@ docker build -t ghcr.io/eunomia-bpf/wasm-bpf:latest .
 ```
 
 ```sh
-docker run --rm -it --privileged -p 9435:9435 \
-  -v $(pwd)/examples:/examples \
+wget https://eunomia-bpf.github.io/wasm-bpf/examples/bootstrap/bootstrap.wasm
+docker run --rm -it --privileged \
+  -v $(pwd):/examples \
   -v /sys/kernel/debug:/sys/kernel/debug:ro \
   -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
-  ghcr.io/eunomia-bpf/wasm-bpf:latest /examples/bootstrap/bootstrap.wasm
+  ghcr.io/eunomia-bpf/wasm-bpf:latest /examples/bootstrap.wasm
 ```
