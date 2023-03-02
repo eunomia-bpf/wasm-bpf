@@ -29,29 +29,13 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 
 For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org/) images, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
 
-## 🔨 Examples
-
-See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
-
-`tracing examples`
-- [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap): trace process exec and exit
-- [runqlat](examples/runqlat): summarizes scheduler run queue latency as a histogram
-- [execve](examples/execve) and [go-execve](examples/go-execve): trace execve syscall
-
-`security example`
-- [lsm](examples/lsm) and  [go-lsm](examples/go-lsm): check the permission to remove a directory
-
-`networking example`
-- [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
-- [sockops](examples/sockops): Add the pid int tcp option in syn packet.
+## 🚀 Get started
 
 Running the `runqlat` example with docker:
 
 ```console
 $ wget https://eunomia-bpf.github.io/wasm-bpf/examples/runqlat/runqlat.wasm
-$ docker run --rm -it --privileged \
-  -v $(pwd):/examples \
-  ghcr.io/eunomia-bpf/wasm-bpf:latest /examples/runqlat.wasm
+$ docker run --rm -it --privileged -v $(pwd):/examples ghcr.io/eunomia-bpf/wasm-bpf:latest /examples/runqlat.wasm
 Tracing run queue latency... Hit Ctrl-C to end.
 
      usecs               : count    distribution
@@ -69,7 +53,25 @@ Tracing run queue latency... Hit Ctrl-C to end.
       2048 -> 4095       : 1        |                                        |
 ```
 
-## How it works
+For more tools to distribute and deploy Wasm-eBPF programs for usecases from `Observability`, `Networking` to `Security`, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
+
+## 🔨 Examples
+
+See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
+
+`tracing examples`
+- [bootstrap](examples/bootstrap) and [rust-bootstrap](examples/rust-bootstrap): trace process exec and exit
+- [runqlat](examples/runqlat): summarizes scheduler run queue latency as a histogram
+- [execve](examples/execve) and [go-execve](examples/go-execve): trace execve syscall
+
+`security example`
+- [lsm](examples/lsm) and  [go-lsm](examples/go-lsm): check the permission to remove a directory
+
+`networking example`
+- [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
+- [sockops](examples/sockops): Add the pid int tcp option in syn packet.
+
+## 📚 How it works
 
 An eBPF application typically consists of two parts: the `user space part` and `the kernel space part`. With wasm-bpf, the user space part is executed in a WebAssembly (Wasm) sandbox while the kernel space part is executed in the eBPF runtime in the Linux kernel. This separation of concerns allows for greater flexibility and security in developing and running eBPF programs, as well as the ability to leverage the benefits of both Wasm and eBPF.
 
@@ -91,7 +93,7 @@ A Wasm module could load and control multiple eBPF programs at the same time, an
 
 We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
 
-## Build the runtime
+## 🤖 Build the runtime
 
 We have two types of runtime samples:
 
