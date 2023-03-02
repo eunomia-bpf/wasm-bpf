@@ -1,6 +1,6 @@
 use std::ffi::CStr;
 
-use crate::{AppState, state::CallerType};
+use crate::{state::CallerType, AppState};
 use anyhow::{anyhow, bail, Context};
 use wasmtime::{Caller, Memory, Table, WasmParams, WasmResults};
 
@@ -136,7 +136,6 @@ impl FunctionQuickCall for CallerType<'_> {
     }
 }
 
-
 #[macro_export]
 macro_rules! add_bind_function_with_module_and_name {
     ($linker: expr, $module: expr, $func: expr, $name: expr) => {{
@@ -150,10 +149,9 @@ macro_rules! add_bind_function_with_module_and_name {
 #[macro_export]
 macro_rules! add_bind_function_with_module {
     ($linker: expr, $module: expr, $func: expr) => {
-        add_bind_function_with_module_and_name!($linker, $module, $func , stringify!($func))
+        add_bind_function_with_module_and_name!($linker, $module, $func, stringify!($func))
     };
 }
-
 
 #[macro_export]
 macro_rules! add_bind_function {
@@ -161,5 +159,3 @@ macro_rules! add_bind_function {
         add_bind_function_with_module!($linker, "wasm_bpf", $func)
     };
 }
-
-

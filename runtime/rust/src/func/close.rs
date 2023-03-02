@@ -6,6 +6,7 @@ use crate::state::CallerType;
 
 use super::BpfObjectType;
 
+/// close and detach a bpf object
 pub fn wasm_close_bpf_object(mut caller: CallerType, program: BpfObjectType) -> i32 {
     debug!("Close bpf object: {}", program);
     let state = caller.data_mut();

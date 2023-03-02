@@ -1,7 +1,16 @@
-use libbpf_rs::libbpf_sys::{bpf_map_get_next_key, bpf_map_lookup_elem_flags, bpf_map_update_elem, bpf_map_delete_elem_flags, BPF_MAP_GET_NEXT_KEY, BPF_MAP_LOOKUP_ELEM, BPF_MAP_UPDATE_ELEM, BPF_MAP_DELETE_ELEM};
+use libbpf_rs::libbpf_sys::{
+    bpf_map_delete_elem_flags, bpf_map_get_next_key, bpf_map_lookup_elem_flags,
+    bpf_map_update_elem, BPF_MAP_DELETE_ELEM, BPF_MAP_GET_NEXT_KEY, BPF_MAP_LOOKUP_ELEM,
+    BPF_MAP_UPDATE_ELEM,
+};
 use log::debug;
 
-use crate::{state::CallerType, func::{ENOENT, EINVAL}, ensure_enough_memory, utils::CallerUtils};
+use crate::{
+    ensure_enough_memory,
+    func::{EINVAL, ENOENT},
+    state::CallerType,
+    utils::CallerUtils,
+};
 
 use super::WasmPointer;
 
