@@ -87,12 +87,6 @@ wasm-bpf 运行时需要两部分：主机端(在 Wasm 运行时之外)和 Wasm 
 
 ![wasi-bpf](docs/wasm-bpf-no-bcc.png)
 
-一个 Wasm 模块可以同时加载和控制多个 eBPF 程序，并且可以调用使用 组件模型 编写的其他语言编写的 Wasm 模块来处理数据或控制。
-
-我们提出了一个新的 WASI 问题 wasi-bpf。
-
-![wasi-bpf](docs/wasm-bpf-no-bcc.png)
-
 Wasm 模块可以同时加载和控制多个 eBPF 程序， 并且能够调用或者控制（通过[组件模型](https://github.com/WebAssembly/component-model)）其他语言编写的 Wasm 模块来处理数据。
 
 我们也提了一个 WASI 提案 [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513)。
