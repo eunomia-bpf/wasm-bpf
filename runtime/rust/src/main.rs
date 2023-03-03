@@ -54,8 +54,6 @@ fn main() -> anyhow::Result<()> {
 
     let wasi = WasiCtxBuilder::new()
         .inherit_stdio()
-        .inherit_args()
-        .with_context(|| anyhow!("Failed to build Wasi Context"))?
         .args(&args_to_wasm[..])
         .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
         .build();
