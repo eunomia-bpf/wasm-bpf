@@ -2,7 +2,8 @@
 name = "wasm-bpf-rs"
 version = "0.1.0"
 edition = "2021"
-
+license = "MIT"
+description = "A WebAssembly runtime for eBPF programs based on libbpf and wasmtime (part of wasm-bpf project)"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
