@@ -1,3 +1,8 @@
+//!  SPDX-License-Identifier: MIT
+//!
+//! Copyright (c) 2023, eunomia-bpf
+//! All rights reserved.
+//!
 use std::collections::hash_map::Entry;
 
 use log::debug;
