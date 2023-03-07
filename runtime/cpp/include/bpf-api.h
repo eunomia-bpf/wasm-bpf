@@ -2,10 +2,9 @@
  *
  * Copyright (c) 2023, eunomia-bpf
  * All rights reserved.
+ *
+ * This is a minimal working example of wasm-bpf runtime implementation.
  */
-// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-/* Copyright (c) 2022 Hengqi Chen */
-
 #ifndef __BPF_WASM_API_H
 #define __BPF_WASM_API_H
 
@@ -31,19 +30,20 @@ int bpf_link__destroy(struct bpf_link *link);
 
 /// @brief init libbpf callbacks
 void init_libbpf(void);
-struct wasm_bpf_program {
+/// @brief bpf program instance
+class wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
         nullptr, bpf_object__close};
     std::unique_ptr<bpf_buffer, void (*)(bpf_buffer *obj)> buffer{
         nullptr, bpf_buffer__free};
     std::unordered_set<std::unique_ptr<bpf_link, int (*)(bpf_link *obj)>> links;
-    void *poll_data;
-    size_t max_poll_size;
+
+   public:
     int bpf_map_fd_by_name(const char *name);
     int load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char *name, const char *attach_target);
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
-                        uint32_t ctx, void *data, size_t max_size,
+                        uint32_t ctx, void *buffer_data, size_t max_size,
                         int timeout_ms);
 };
 
@@ -60,4 +60,5 @@ extern "C" {
 /// The main entry, argc and argv will be passed to the wasm module.
 int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]);
 }
+
 #endif

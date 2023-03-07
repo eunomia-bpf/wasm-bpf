@@ -1,3 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+ *
+ * Copyright (c) 2022, eunomia-bpf org
+ * All rights reserved.
+ *
+ * This is a minimal working example of wasm-bpf runtime implementation.
+ */
 #include <asm/unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -30,8 +37,9 @@ void init_libbpf(void) {
 #define PERF_BUFFER_PAGES 64
 
 typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
-/// An absraction of a bpf ring buffer or perf buffer from bcc.
-/// https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
+
+/// An absraction of a bpf ring buffer or perf buffer copied from bcc.
+/// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
 struct bpf_buffer {
     struct bpf_map *events;
     void *inner;
@@ -39,23 +47,25 @@ struct bpf_buffer {
     wasm_exec_env_t exec_env;
     uint32_t ctx;
     uint32_t wasm_sample_function;
+    void *poll_data;
+    size_t max_poll_size;
     int type;
 };
 
+/// @brief sample the perf buffer and ring buffer
 static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
-    wasm_bpf_program *program = (wasm_bpf_program *)ctx;
+    bpf_buffer *buffer = (bpf_buffer *)ctx;
     size_t sample_size = size;
-    if (program->max_poll_size < size) {
-        sample_size = program->max_poll_size;
+    if (buffer->max_poll_size < size) {
+        sample_size = buffer->max_poll_size;
     }
-    memcpy(program->poll_data, data, sample_size);
+    memcpy(buffer->poll_data, data, sample_size);
     wasm_module_inst_t module_inst =
-        wasm_runtime_get_module_inst(program->buffer->exec_env);
+        wasm_runtime_get_module_inst(buffer->exec_env);
     uint32_t argv[] = {
-        program->buffer->ctx,
-        wasm_runtime_addr_native_to_app(module_inst, program->poll_data),
+        buffer->ctx,
+        wasm_runtime_addr_native_to_app(module_inst, buffer->poll_data),
         (uint32_t)size};
-    auto buffer = program->buffer.get();
     if (!wasm_runtime_call_indirect(buffer->exec_env,
                                     buffer->wasm_sample_function, 3, argv)) {
         printf("call func1 failed\n");
@@ -64,10 +74,12 @@ static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
     return 0;
 }
 
+/// @brief perf buffer sample callback
 static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
     bpf_buffer_sample(ctx, data, size);
 }
 
+/// @brief get the bpf map in a object by fd
 struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
     bpf_map *map;
     bpf_object__for_each_map(map, obj) {
@@ -76,6 +88,7 @@ struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
     return NULL;
 }
 
+/// @brief create a bpf buffer based on the object map type
 struct bpf_buffer *bpf_buffer__new(struct bpf_map *events) {
     struct bpf_buffer *buffer;
     bool use_ringbuf;
@@ -100,6 +113,7 @@ struct bpf_buffer *bpf_buffer__new(struct bpf_map *events) {
     return buffer;
 }
 
+/// @brief open a perf buffer or ring buffer
 int bpf_buffer__open(struct bpf_buffer *buffer, bpf_buffer_sample_fn sample_cb,
                      void *ctx) {
     int fd, type;
@@ -127,6 +141,7 @@ int bpf_buffer__open(struct bpf_buffer *buffer, bpf_buffer_sample_fn sample_cb,
     return 0;
 }
 
+/// @brief polling the bpf buffer
 int bpf_buffer__poll(struct bpf_buffer *buffer, int timeout_ms) {
     switch (buffer->type) {
         case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
@@ -137,7 +152,7 @@ int bpf_buffer__poll(struct bpf_buffer *buffer, int timeout_ms) {
             return -EINVAL;
     }
 }
-
+/// @brief free the bpf buffer
 void bpf_buffer__free(struct bpf_buffer *buffer) {
     if (!buffer) return;
 
@@ -222,11 +237,11 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
         // create buffer
         auto map = bpf_obj_get_map_by_fd(fd, obj.get());
         buffer.reset(bpf_buffer__new(map));
-        bpf_buffer__open(buffer.get(), bpf_buffer_sample, this);
+        bpf_buffer__open(buffer.get(), bpf_buffer_sample, buffer.get());
         return 0;
     }
-    max_poll_size = max_size;
-    poll_data = data;
+    buffer->max_poll_size = max_size;
+    buffer->poll_data = data;
     buffer->exec_env = exec_env;
     buffer->wasm_sample_function = (uint32_t)sample_func;
     buffer->ctx = ctx;
@@ -294,6 +309,7 @@ int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
     return ((wasm_bpf_program *)program)->bpf_map_fd_by_name(name);
 }
 
+/// @brief a wrapper function to the bpf syscall to operate the bpf maps
 int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
                          void *value, void *next_key, uint64_t flags) {
     return bpf_map_operate(fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
@@ -354,6 +370,7 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
         printf("The start wasm function is not found.\n");
         return -1;
     }
+    // start running the wasm module
     if (!wasm_runtime_call_wasm(exec_env, start_func, 0, NULL)) {
         printf("Call wasm function start failed. %s\n",
                wasm_runtime_get_exception(module_inst));
