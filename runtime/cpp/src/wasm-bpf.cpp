@@ -24,14 +24,31 @@ extern bool wasm_runtime_call_indirect(wasm_exec_env_t exec_env,
                                        uint32_t element_indices, uint32_t argc,
                                        uint32_t argv[]);
 }
+static int bpf_buffer_sample(void *ctx, void *data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
                            va_list args) {
     if (DEBUG_LIBBPF_RUNTIME) return vfprintf(stderr, format, args);
     return 0;
 }
+
+/// @brief initialize libbpf library
 void init_libbpf(void) {
     libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
     libbpf_set_print(libbpf_print_fn);
+}
+
+/// @brief perf buffer sample callback
+static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
+    bpf_buffer_sample(ctx, data, size);
+}
+
+/// @brief get the bpf map in a object by fd
+static struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
+    bpf_map *map;
+    bpf_object__for_each_map(map, obj) {
+        if (bpf_map__fd(map) == fd) return map;
+    }
+    return NULL;
 }
 
 #define PERF_BUFFER_PAGES 64
@@ -41,16 +58,65 @@ typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
 /// An absraction of a bpf ring buffer or perf buffer copied from bcc.
 /// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
 struct bpf_buffer {
-    struct bpf_map *events;
-    void *inner;
     bpf_buffer_sample_fn fn;
     wasm_exec_env_t exec_env;
     uint32_t ctx;
     uint32_t wasm_sample_function;
     void *poll_data;
     size_t max_poll_size;
-    int type;
+    int bpf_buffer_sample(void *ctx, void *data, size_t size);
+    void set_callback_params(wasm_exec_env_t exec_env, uint32_t sample_func,
+                             void *data, size_t max_size, uint32_t ctx);
+    virtual int bpf_buffer__poll(int timeout_ms) = 0;
+    virtual int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
+                                 void *ctx) = 0;
+    virtual ~bpf_buffer() = default;
 };
+
+struct perf_buffer_wrapper : public bpf_buffer {
+    perf_buffer_wrapper(bpf_map *events) {
+        bpf_map__set_type(events, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+        bpf_map__set_key_size(events, sizeof(int));
+        bpf_map__set_value_size(events, sizeof(int));
+    }
+    std::unique_ptr<perf_buffer, void (*)(perf_buffer *pb)> inner{
+        nullptr, perf_buffer__free};
+    int bpf_buffer__poll(int timeout_ms) override {
+        return perf_buffer__poll(inner.get(), timeout_ms);
+    }
+    int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
+                         void *ctx) override {
+        inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn,
+                                     NULL, ctx, NULL));
+        return inner ? 0 : -EINVAL;
+    }
+};
+
+struct ring_buffer_wrapper : public bpf_buffer {
+    ring_buffer_wrapper(bpf_map *events) {
+        bpf_map__set_autocreate(events, false);
+    }
+    std::unique_ptr<ring_buffer, void (*)(ring_buffer *pb)> inner{
+        nullptr, ring_buffer__free};
+    int bpf_buffer__poll(int timeout_ms) override {
+        return ring_buffer__poll(inner.get(), timeout_ms);
+    }
+    int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
+                         void *ctx) override {
+        inner.reset(ring_buffer__new(fd, sample_cb, ctx, NULL));
+        return inner ? 0 : -1;
+    }
+};
+
+void bpf_buffer::set_callback_params(wasm_exec_env_t exec_env,
+                                     uint32_t sample_func, void *data,
+                                     size_t max_size, uint32_t ctx) {
+    exec_env = exec_env;
+    wasm_sample_function = sample_func;
+    poll_data = data;
+    max_poll_size = max_size;
+    ctx = ctx;
+}
 
 /// @brief sample the perf buffer and ring buffer
 static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
@@ -66,6 +132,7 @@ static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
         buffer->ctx,
         wasm_runtime_addr_native_to_app(module_inst, buffer->poll_data),
         (uint32_t)size};
+    // call the wasm callback handler
     if (!wasm_runtime_call_indirect(buffer->exec_env,
                                     buffer->wasm_sample_function, 3, argv)) {
         printf("call func1 failed\n");
@@ -74,98 +141,17 @@ static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
     return 0;
 }
 
-/// @brief perf buffer sample callback
-static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
-    bpf_buffer_sample(ctx, data, size);
-}
-
-/// @brief get the bpf map in a object by fd
-struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
-    bpf_map *map;
-    bpf_object__for_each_map(map, obj) {
-        if (bpf_map__fd(map) == fd) return map;
-    }
-    return NULL;
-}
-
 /// @brief create a bpf buffer based on the object map type
-struct bpf_buffer *bpf_buffer__new(struct bpf_map *events) {
-    struct bpf_buffer *buffer;
-    bool use_ringbuf;
-    int type;
-    use_ringbuf = bpf_map__type(events) == BPF_MAP_TYPE_RINGBUF;
+std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
+    bool use_ringbuf = bpf_map__type(events) == BPF_MAP_TYPE_RINGBUF;
     if (use_ringbuf) {
-        bpf_map__set_autocreate(events, false);
-        type = BPF_MAP_TYPE_RINGBUF;
+        return std::make_unique<ring_buffer_wrapper>(events);
     } else {
-        bpf_map__set_type(events, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-        bpf_map__set_key_size(events, sizeof(int));
-        bpf_map__set_value_size(events, sizeof(int));
-        type = BPF_MAP_TYPE_PERF_EVENT_ARRAY;
+        return std::make_unique<perf_buffer_wrapper>(events);
     }
-    buffer = (bpf_buffer *)calloc(1, sizeof(*buffer));
-    if (!buffer) {
-        errno = ENOMEM;
-        return NULL;
-    }
-    buffer->events = events;
-    buffer->type = type;
-    return buffer;
+    return nullptr;
 }
 
-/// @brief open a perf buffer or ring buffer
-int bpf_buffer__open(struct bpf_buffer *buffer, bpf_buffer_sample_fn sample_cb,
-                     void *ctx) {
-    int fd, type;
-    void *inner;
-
-    fd = bpf_map__fd(buffer->events);
-    type = buffer->type;
-
-    switch (type) {
-        case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
-            buffer->fn = sample_cb;
-            inner = perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn,
-                                     NULL, ctx, NULL);
-            break;
-        case BPF_MAP_TYPE_RINGBUF:
-            inner = ring_buffer__new(fd, sample_cb, ctx, NULL);
-            break;
-        default:
-            return 0;
-    }
-
-    if (!inner) return -errno;
-
-    buffer->inner = inner;
-    return 0;
-}
-
-/// @brief polling the bpf buffer
-int bpf_buffer__poll(struct bpf_buffer *buffer, int timeout_ms) {
-    switch (buffer->type) {
-        case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
-            return perf_buffer__poll((perf_buffer *)buffer->inner, timeout_ms);
-        case BPF_MAP_TYPE_RINGBUF:
-            return ring_buffer__poll((ring_buffer *)buffer->inner, timeout_ms);
-        default:
-            return -EINVAL;
-    }
-}
-/// @brief free the bpf buffer
-void bpf_buffer__free(struct bpf_buffer *buffer) {
-    if (!buffer) return;
-
-    switch (buffer->type) {
-        case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
-            perf_buffer__free((perf_buffer *)buffer->inner);
-            break;
-        case BPF_MAP_TYPE_RINGBUF:
-            ring_buffer__free((ring_buffer *)buffer->inner);
-            break;
-    }
-    free(buffer);
-}
 /// Get the file descriptor of a map by name.
 int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
     return bpf_object__find_map_fd_by_name(obj.get(), name);
@@ -236,18 +222,14 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
     if (buffer.get() == nullptr) {
         // create buffer
         auto map = bpf_obj_get_map_by_fd(fd, obj.get());
-        buffer.reset(bpf_buffer__new(map));
-        bpf_buffer__open(buffer.get(), bpf_buffer_sample, buffer.get());
+        buffer = bpf_buffer__new(map);
+        buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
         return 0;
     }
-    buffer->max_poll_size = max_size;
-    buffer->poll_data = data;
-    buffer->exec_env = exec_env;
-    buffer->wasm_sample_function = (uint32_t)sample_func;
-    buffer->ctx = ctx;
+    buffer->set_callback_params(exec_env, sample_func, data, max_size, ctx);
 
     // poll the buffer
-    int res = bpf_buffer__poll(buffer.get(), timeout_ms);
+    int res = buffer->bpf_buffer__poll(timeout_ms);
     if (res < 0) {
         return res;
     }

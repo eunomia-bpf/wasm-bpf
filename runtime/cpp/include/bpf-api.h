@@ -19,11 +19,9 @@
 #define DEBUG_LIBBPF_RUNTIME 0
 
 extern "C" {
-struct bpf_buffer;
 struct bpf_map;
 struct bpf_object;
 struct bpf_link;
-void bpf_buffer__free(struct bpf_buffer *);
 void bpf_object__close(struct bpf_object *object);
 int bpf_link__destroy(struct bpf_link *link);
 }
@@ -34,8 +32,7 @@ void init_libbpf(void);
 class wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
         nullptr, bpf_object__close};
-    std::unique_ptr<bpf_buffer, void (*)(bpf_buffer *obj)> buffer{
-        nullptr, bpf_buffer__free};
+    std::unique_ptr<bpf_buffer> buffer;
     std::unordered_set<std::unique_ptr<bpf_link, int (*)(bpf_link *obj)>> links;
 
    public:
