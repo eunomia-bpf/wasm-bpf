@@ -1,3 +1,8 @@
+//!  SPDX-License-Identifier: MIT
+//!
+//! Copyright (c) 2023, eunomia-bpf
+//! All rights reserved.
+//!
 pub const EINVAL: i32 = 22;
 pub const ENOENT: i32 = 2;
 

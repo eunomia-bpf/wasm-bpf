@@ -1,3 +1,8 @@
+//!  SPDX-License-Identifier: MIT
+//!
+//! Copyright (c) 2023, eunomia-bpf
+//! All rights reserved.
+//!
 use libbpf_rs::libbpf_sys::{
     bpf_map_delete_elem_flags, bpf_map_get_next_key, bpf_map_lookup_elem_flags,
     bpf_map_update_elem, BPF_MAP_DELETE_ELEM, BPF_MAP_GET_NEXT_KEY, BPF_MAP_LOOKUP_ELEM,
