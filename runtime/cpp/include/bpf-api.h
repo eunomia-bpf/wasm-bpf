@@ -28,6 +28,33 @@ int bpf_link__destroy(struct bpf_link *link);
 
 /// @brief init libbpf callbacks
 void init_libbpf(void);
+
+typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
+
+/// An absraction of a bpf ring buffer or perf buffer copied from bcc.
+/// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
+class bpf_buffer {
+    bpf_buffer_sample_fn fn;
+    wasm_exec_env_t exec_env;
+    uint32_t ctx;
+    uint32_t wasm_sample_function;
+    void *poll_data;
+    size_t max_poll_size;
+
+   public:
+    /// @brief sample callback which calls the wasm handler indirectly
+    int bpf_buffer_sample(void *data, size_t size);
+    /// @brief set the wasm callback parameters
+    void set_callback_params(wasm_exec_env_t exec_env, uint32_t sample_func,
+                             void *data, size_t max_size, uint32_t ctx);
+    /// @brief polling the bpf buffer
+    virtual int bpf_buffer__poll(int timeout_ms) = 0;
+    /// @brief open the bpf buffer map
+    virtual int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
+                                 void *ctx) = 0;
+    virtual ~bpf_buffer() = default;
+};
+
 /// @brief bpf program instance
 class wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{

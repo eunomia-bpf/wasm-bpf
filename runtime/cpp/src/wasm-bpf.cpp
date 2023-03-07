@@ -53,34 +53,16 @@ static struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
 
 #define PERF_BUFFER_PAGES 64
 
-typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
+class perf_buffer_wrapper : public bpf_buffer {
+    std::unique_ptr<perf_buffer, void (*)(perf_buffer *pb)> inner{
+        nullptr, perf_buffer__free};
 
-/// An absraction of a bpf ring buffer or perf buffer copied from bcc.
-/// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
-struct bpf_buffer {
-    bpf_buffer_sample_fn fn;
-    wasm_exec_env_t exec_env;
-    uint32_t ctx;
-    uint32_t wasm_sample_function;
-    void *poll_data;
-    size_t max_poll_size;
-    int bpf_buffer_sample(void *ctx, void *data, size_t size);
-    void set_callback_params(wasm_exec_env_t exec_env, uint32_t sample_func,
-                             void *data, size_t max_size, uint32_t ctx);
-    virtual int bpf_buffer__poll(int timeout_ms) = 0;
-    virtual int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
-                                 void *ctx) = 0;
-    virtual ~bpf_buffer() = default;
-};
-
-struct perf_buffer_wrapper : public bpf_buffer {
+   public:
     perf_buffer_wrapper(bpf_map *events) {
         bpf_map__set_type(events, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
         bpf_map__set_key_size(events, sizeof(int));
         bpf_map__set_value_size(events, sizeof(int));
     }
-    std::unique_ptr<perf_buffer, void (*)(perf_buffer *pb)> inner{
-        nullptr, perf_buffer__free};
     int bpf_buffer__poll(int timeout_ms) override {
         return perf_buffer__poll(inner.get(), timeout_ms);
     }
@@ -93,11 +75,12 @@ struct perf_buffer_wrapper : public bpf_buffer {
 };
 
 struct ring_buffer_wrapper : public bpf_buffer {
+   public:
+    std::unique_ptr<ring_buffer, void (*)(ring_buffer *pb)> inner{
+        nullptr, ring_buffer__free};
     ring_buffer_wrapper(bpf_map *events) {
         bpf_map__set_autocreate(events, false);
     }
-    std::unique_ptr<ring_buffer, void (*)(ring_buffer *pb)> inner{
-        nullptr, ring_buffer__free};
     int bpf_buffer__poll(int timeout_ms) override {
         return ring_buffer__poll(inner.get(), timeout_ms);
     }
@@ -118,27 +101,28 @@ void bpf_buffer::set_callback_params(wasm_exec_env_t exec_env,
     ctx = ctx;
 }
 
-/// @brief sample the perf buffer and ring buffer
-static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
-    bpf_buffer *buffer = (bpf_buffer *)ctx;
+int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
     size_t sample_size = size;
-    if (buffer->max_poll_size < size) {
-        sample_size = buffer->max_poll_size;
+    if (max_poll_size < size) {
+        sample_size = max_poll_size;
     }
-    memcpy(buffer->poll_data, data, sample_size);
-    wasm_module_inst_t module_inst =
-        wasm_runtime_get_module_inst(buffer->exec_env);
-    uint32_t argv[] = {
-        buffer->ctx,
-        wasm_runtime_addr_native_to_app(module_inst, buffer->poll_data),
-        (uint32_t)size};
+    memcpy(poll_data, data, sample_size);
+    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
+    uint32_t argv[] = {ctx,
+                       wasm_runtime_addr_native_to_app(module_inst, poll_data),
+                       (uint32_t)size};
     // call the wasm callback handler
-    if (!wasm_runtime_call_indirect(buffer->exec_env,
-                                    buffer->wasm_sample_function, 3, argv)) {
+    if (!wasm_runtime_call_indirect(exec_env, wasm_sample_function, 3, argv)) {
         printf("call func1 failed\n");
         return 0xDEAD;
     }
     return 0;
+}
+
+/// @brief sample the perf buffer and ring buffer
+static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
+    bpf_buffer *buffer = (bpf_buffer *)ctx;
+    return buffer->bpf_buffer_sample(data, size);
 }
 
 /// @brief create a bpf buffer based on the object map type
@@ -227,7 +211,6 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
         return 0;
     }
     buffer->set_callback_params(exec_env, sample_func, data, max_size, ctx);
-
     // poll the buffer
     int res = buffer->bpf_buffer__poll(timeout_ms);
     if (res < 0) {
