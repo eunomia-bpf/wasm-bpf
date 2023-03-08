@@ -3,7 +3,7 @@ name = "wasm-bpf-rs"
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "A WebAssembly runtime cmd for eBPF programs based on libbpf and wasmtime (part of wasm-bpf project)"
+description = "A WebAssembly runtime library for eBPF programs based on libbpf and wasmtime"
 
 [dependencies]
 anyhow = "1.0.69"

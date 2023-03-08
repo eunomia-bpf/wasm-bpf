@@ -52,4 +52,15 @@ $(APP).wasm: main.go $(APP).bpf.o
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
+	case $$IMPL in \
+		cpp) \
+			echo "ignore in cpp" \
+			;; \
+		rust) \
+			sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi \
+			;; \
+		*) \
+			echo "\e[31mNo runtime specified. Set env variable IMPL to either \"rust\" or \"cpp\" to specify which runtime to use\e[0m" && \
+			exit 1 \
+			;; \
+	esac

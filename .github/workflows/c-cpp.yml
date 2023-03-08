@@ -25,12 +25,10 @@ jobs:
       run: make -C runtime/cpp
     - name: make build-lib
       run: make -C runtime/cpp build-lib
-    - name: make test
-      run: make -C runtime/cpp test
-    - name: Build wasm-bpf
-      run: sudo make build-cpp
     - name: examples with cpp runtime
       run: IMPL=cpp  make -C examples
+    - name: make test
+      run: make -C runtime/cpp test
     - name: Upload build result
       uses: actions/upload-artifact@v2.3.1
       with:

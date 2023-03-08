@@ -2,7 +2,7 @@ build: build-rust build-cpp
 
 build-rust:
 	$(MAKE) -C runtime/cmd build
-	cp ./runtime/cmd/cmd/target/release/wasm-bpf ./wasm-bpf-rs
+	cp ./runtime/target/release/wasm-bpf ./wasm-bpf-rs
 
 build-cpp:
 	$(MAKE) -C runtime/cpp build
