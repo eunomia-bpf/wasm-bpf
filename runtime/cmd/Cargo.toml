@@ -13,4 +13,4 @@ anyhow = "1.0.69"
 clap = { version = "4.1.4", features = ["derive"] }
 flexi_logger = "0.25.1"
 log = "0.4.17"
-wasm-bpf-rs = { path = "../wasm-bpf-rs", version = "0.2.0" }
+wasm-bpf-rs = { path = "../wasm-bpf-rs", version = "0.2.1" }

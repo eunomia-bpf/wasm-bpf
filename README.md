@@ -34,6 +34,12 @@ It also enables developers to write eBPF programs in familiar languages like `C/
 
 ### 📦 Install wasm-bpf
 
+Run the following command to install the `wasm-bpf` CLI tool:
+
+```sh
+cargo install wasm-bpf 
+```
+
 ### Running a standalone Wasm-eBPF program
 
 Running the `runqlat` example with docker:
@@ -62,7 +68,13 @@ For more tools to distribute and deploy Wasm-eBPF programs for usecases from `Ob
 
 ### Embed a Wasm-eBPF function in your program
 
+Add the following line to your Cargo.toml to use Wasm-bpf as a `library`:
 
+```toml
+wasm-bpf-rs = "0.2.1"
+```
+
+See the [main.rs](runtime/cmd/src/main.rs) for an example of how to use the `wasm-bpf-rs` library.
 
 ## Features
 
