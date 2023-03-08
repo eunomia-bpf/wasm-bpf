@@ -1,6 +1,6 @@
 [package]
 name = "wasm-bpf-rs"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 description = "A WebAssembly runtime library for eBPF programs based on libbpf and wasmtime"
