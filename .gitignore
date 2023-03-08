@@ -2,6 +2,3 @@
 build/
 examples/wasm-bpf
 wasi-sdk-*-linux.tar.gz
-
-wasm-bpf
-wasm-bpf-rs

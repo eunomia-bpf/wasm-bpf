@@ -1,8 +1,0 @@
-/target
-dump*
-test*
-runqlat.wasm
-wasi-test.wasm
-execve.go.wasm
-go-wasm-bpf-callback-polyfill.wasm
-wasm.wasm

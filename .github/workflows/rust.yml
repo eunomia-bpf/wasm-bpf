@@ -17,9 +17,15 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install dependencies
-      run: sudo make install-deps
+      run: |
+          sudo make install-deps
+          make /opt/wasi-sdk
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_amd64.deb
+          sudo dpkg -i tinygo_0.27.0_amd64.deb
     - name: Build
       run: make build-rust
+    - name: examples with rust runtime
+      run: IMPL=rust make -C examples
     - name: Upload build result
       uses: actions/upload-artifact@v2.3.1
       with:
