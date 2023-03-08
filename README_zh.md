@@ -76,7 +76,7 @@ Tracing run queue latency... Hit Ctrl-C to end.
 wasm-bpf 运行时需要两部分：主机端(在 Wasm 运行时之外)和 Wasm 客户端端(在 Wasm 运行时之内)。
 
 - 主机端：一个简单的运行时实现示例
-  - 参见 [runtime/cpp](runtime/cpp)，它将是在 [libbpf](https://github.com/libbpf/libbpf) 和 [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) 之上构建的 C++ 示例运行时。另一个更完善的基于 [Wasmtime](https://github.com/bytecodealliance/wasmtime) 的 Rust 运行时实现在 [runtime/rust](runtime/rust) 中。
+  - 参见 [runtime/cpp](runtime/cpp)，它将是在 [libbpf](https://github.com/libbpf/libbpf) 和 [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) 之上构建的 C++ 示例运行时。另一个更完善的基于 [Wasmtime](https://github.com/bytecodealliance/wasmtime) 的 Rust 运行时实现在 [runtime/wasm-bpf-rs](runtime/wasm-bpf-rs) 中。
   - 您可以使用相同的系统接口以 任何 语言、任何 eBPF 库和 任何 Wasm 运行时轻松构建自己的 Wasm-eBPF 运行时。
 - wasm 端：工具链和库
   - 一个名为 [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) 的头文件库，为 Wasm 客户端 C/C++ 代码提供 libbpf API。

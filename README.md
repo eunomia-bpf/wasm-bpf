@@ -78,7 +78,7 @@ An eBPF application typically consists of two parts: the `user space part` and `
 The wasm-bpf runtime require two parts: `the host side`(Outside the Wasm runtime) and the `Wasm guest side`(Inside the Wasm runtime).
 
 - host side: A simple runtime implementation example
-  - see [runtime/cpp](runtime/cpp), which would be a sample runtime in `C++` built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). Another more complex runtime implement in `Rust` is [runtime/rust](runtime/rust), based on [Wasmtime](https://github.com/bytecodealliance/wasmtime).
+  - see [runtime/cpp](runtime/cpp), which would be a sample runtime in `C++` built on the top of [libbpf](https://github.com/libbpf/libbpf) and [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime). Another more complex runtime implement in `Rust` is [runtime/wasm-bpf-rs](runtime/wasm-bpf-rs), based on [Wasmtime](https://github.com/bytecodealliance/wasmtime).
   - You can easily build your own Wasm-eBPF runtime in `any` languages, `any` eBPF libraries and `any` Wasm runtimes with the same System interface.
 - wasm side: toolchains and libraries
   - a [`libbpf-wasm`](wasm-sdk/c/libbpf-wasm.h) header only library to provide libbpf APIs for Wasm guest `C/C++` code.
@@ -98,7 +98,7 @@ We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI
 We have two types of runtime samples:
 
 - A C/C++ runtime example, which is a minimal runtime based on WAMR. see [runtime/cpp](../runtime/cpp) for more details.
-- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/rust](../runtime/rust) for more details.
+- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/wasm-bpf-rs](../runtime/wasm-bpf-rs) for more details.
 
 The runtime can be built as a library or a standalone executable. see [docs/build.md](docs/build.md) to build the runtimes.
 
