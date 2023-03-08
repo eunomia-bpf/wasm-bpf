@@ -3,7 +3,7 @@
 We have two types of runtime examples:
 
 - A C/C++ runtime example, which is a minimal runtime based on WAMR. see [runtime/cpp](../runtime/cpp) for more details.
-- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/rust](../runtime/rust) for more details.
+- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/cmd](../runtime/cmd) for more details.
 
 A new runtime is easy to implement with only a few hundred lines of code, in any language, using any wasm runtime or any ebpf user space library.
 
@@ -64,7 +64,7 @@ curl https://sh.rustup.rs -sSf | sh -s
 
 ### Build runtime as a executable tool
 
-Run `make` in the `runtime/rust` directory to build the runtime, which will be placed in the `target`
+Run `make` in the `runtime/cmd` directory to build the runtime, which will be placed in the `target`
 directory.
 
 ```sh

@@ -19,6 +19,8 @@ jobs:
       run: |
           sudo make install-deps
           make /opt/wasi-sdk
+          wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_amd64.deb
+          sudo dpkg -i tinygo_0.27.0_amd64.deb
     - name: make
       run: make -C runtime/cpp
     - name: make build-lib
@@ -27,6 +29,8 @@ jobs:
       run: make -C runtime/cpp test
     - name: Build wasm-bpf
       run: sudo make build-cpp
+    - name: examples with cpp runtime
+      run: IMPL=cpp  make -C examples
     - name: Upload build result
       uses: actions/upload-artifact@v2.3.1
       with:

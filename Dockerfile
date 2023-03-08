@@ -3,7 +3,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libelf1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./runtime/rust/target/release/wasm-bpf-rs /root/wasm-bpf
+COPY ./runtime/cmd/target/release/wasm-bpf /root/wasm-bpf
 
 WORKDIR /root
 
