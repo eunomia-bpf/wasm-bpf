@@ -35,8 +35,8 @@ typedef int (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
 /// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
 class bpf_buffer {
     bpf_buffer_sample_fn fn;
-    wasm_exec_env_t exec_env;
-    uint32_t ctx;
+    wasm_exec_env_t callback_exec_env;
+    uint32_t wasm_ctx;
     uint32_t wasm_sample_function;
     void *poll_data;
     size_t max_poll_size;
