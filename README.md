@@ -109,7 +109,7 @@ The runtime can be built as a library or a standalone executable. see [docs/buil
 ## 🔗 Links
 
 - eunomia-bpf project: simplify and enhance eBPF with CO-RE and WebAssembly https://github.com/eunomia-bpf/eunomia-bpf
-- documents and blogs: https://eunomia-bpf.github.io/blog/ebpf-wasm.html
+- documents and blogs: https://docs.eunomia.dev
 - CO-RE (Compile Once – Run Everywhere): https://facebookmicrosites.github.io/bpf/blog/2020/02/19/bpf-portability-and-co-re.html
 - WAMR (WebAssembly Micro Runtime): https://github.com/bytecodealliance/wasm-micro-runtime
 - libbpf: https://github.com/libbpf/libbpf
