@@ -13,6 +13,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 #include "bpf-api.h"
 
@@ -30,6 +31,8 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
     if (DEBUG_LIBBPF_RUNTIME) return vfprintf(stderr, format, args);
     return 0;
 }
+using bpf_program_manager =
+    std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>>;
 
 /// @brief initialize libbpf library
 void init_libbpf(void) {
@@ -94,11 +97,11 @@ struct ring_buffer_wrapper : public bpf_buffer {
 void bpf_buffer::set_callback_params(wasm_exec_env_t exec_env,
                                      uint32_t sample_func, void *data,
                                      size_t max_size, uint32_t ctx) {
-    exec_env = exec_env;
+    callback_exec_env = exec_env;
     wasm_sample_function = sample_func;
     poll_data = data;
     max_poll_size = max_size;
-    ctx = ctx;
+    wasm_ctx = ctx;
 }
 
 int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
@@ -107,12 +110,14 @@ int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
         sample_size = max_poll_size;
     }
     memcpy(poll_data, data, sample_size);
-    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
-    uint32_t argv[] = {ctx,
+    wasm_module_inst_t module_inst =
+        wasm_runtime_get_module_inst(callback_exec_env);
+    uint32_t argv[] = {wasm_ctx,
                        wasm_runtime_addr_native_to_app(module_inst, poll_data),
                        (uint32_t)size};
     // call the wasm callback handler
-    if (!wasm_runtime_call_indirect(exec_env, wasm_sample_function, 3, argv)) {
+    if (!wasm_runtime_call_indirect(callback_exec_env, wasm_sample_function, 3,
+                                    argv)) {
         printf("call func1 failed\n");
         return 0xDEAD;
     }
@@ -166,6 +171,8 @@ static int attach_cgroup(struct bpf_program *prog, const char *path) {
 }
 
 /// @brief attach a specific bpf program by name and target.
+/// support auto attach for most bpf program types:
+/// tracepoint, kprobe, fentry, lsm, etc.
 int wasm_bpf_program::attach_bpf_program(const char *name,
                                          const char *attach_target) {
     struct bpf_link *link;
@@ -210,7 +217,8 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
         buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
         return 0;
     }
-    buffer->set_callback_params(exec_env, sample_func, data, max_size, ctx);
+    buffer->set_callback_params(exec_env, (uint32_t)sample_func, data, max_size,
+                                ctx);
     // poll the buffer
     int res = buffer->bpf_buffer__poll(timeout_ms);
     if (res < 0) {
@@ -241,37 +249,53 @@ extern "C" {
 uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
                               int obj_buf_sz) {
     if (obj_buf_sz <= 0) return 0;
-    wasm_bpf_program *program = new wasm_bpf_program();
+    bpf_program_manager *bpf_programs =
+        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    auto program = std::make_unique<wasm_bpf_program>();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
-    if (res < 0) {
-        delete program;
-        return 0;
-    }
-    return (uint64_t)program;
+    if (res < 0) return 0;
+    auto key = (uint64_t)program.get();
+    bpf_programs->emplace(key, std::move(program));
+    return key;
 }
 
 int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
-    delete ((wasm_bpf_program *)program);
-    return 0;
+    bpf_program_manager *bpf_programs =
+        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    return !bpf_programs->erase(program);
 }
 
 int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
                             char *name, char *attach_target) {
-    return ((wasm_bpf_program *)program)
-        ->attach_bpf_program(name, attach_target);
+    bpf_program_manager *bpf_programs =
+        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    if (bpf_programs->find(program) != bpf_programs->end()) {
+        return (*bpf_programs)[program]->attach_bpf_program(name,
+                                                            attach_target);
+    }
+    return -EINVAL;
 }
 
 int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
                          int32_t sample_func, uint32_t ctx, char *data,
                          int max_size, int timeout_ms) {
-    return ((wasm_bpf_program *)program)
-        ->bpf_buffer_poll(exec_env, fd, sample_func, ctx, data,
-                          (size_t)max_size, timeout_ms);
+    bpf_program_manager *bpf_programs =
+        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    if (bpf_programs->find(program) != bpf_programs->end()) {
+        return (*bpf_programs)[program]->bpf_buffer_poll(
+            exec_env, fd, sample_func, ctx, data, (size_t)max_size, timeout_ms);
+    }
+    return -EINVAL;
 }
 
 int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
                             const char *name) {
-    return ((wasm_bpf_program *)program)->bpf_map_fd_by_name(name);
+    bpf_program_manager *bpf_programs =
+        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    if (bpf_programs->find(program) != bpf_programs->end()) {
+        return (*bpf_programs)[program]->bpf_map_fd_by_name(name);
+    }
+    return -EINVAL;
 }
 
 /// @brief a wrapper function to the bpf syscall to operate the bpf maps
@@ -330,6 +354,8 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
         printf("Create wasm execution environment failed.\n");
         return -1;
     }
+    std::unordered_set<std::unique_ptr<wasm_bpf_program>> bpf_programs;
+    wasm_runtime_set_user_data(exec_env, &bpf_programs);
     wasm_runtime_set_module_inst(exec_env, module_inst);
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The start wasm function is not found.\n");

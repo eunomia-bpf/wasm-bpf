@@ -23,6 +23,6 @@ int main(int argc, char *argv[]) {
     std::ifstream file(argv[1]);
     std::vector<uint8_t> wasm_module((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
-    return wasm_main(wasm_module.data(), wasm_module.size(), argc - 1,
+    return wasm_main(wasm_module.data(), (unsigned int)wasm_module.size(), argc - 1,
                      argv + 1);
 }
