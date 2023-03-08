@@ -15,10 +15,10 @@
 ⌨️ [Introduction](#introduction) to wasm-bpf \
 📦 [Features](#features) \
 🚀 [Running](#running-a-standalone-wasm-ebpf-program) a standalone Wasm program from CLI or Docker \
-🔌 Embed a Wasm-eBPF function in your [Rust program](#embed-a-wasm-ebpf-function-in-your-program) or [C/C++ program](#🤖-build-the-runtime)  \
-🔨 [Examples](#🔨-examples) covering the use cases from `tracing`, `networking` to `security` \
-📚 [How it works](#📚-how-it-works) \
-🤖 [Build](#🤖-build-the-runtime) the runtime
+🔌 Embed a Wasm-eBPF function in your [Rust program](#embed-a-wasm-ebpf-function-in-your-program) or [C/C++ program](#build-the-runtime)  \
+🔨 [Examples](#examples) covering the use cases from `tracing`, `networking` to `security` \
+📚 [How it works](#how-it-works) \
+🤖 [Build](#build-the-runtime) the runtime
 
 📚 **[Check out our more documentations](https://docs.eunomia.dev/)**
 
@@ -87,7 +87,7 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 
 For tools to distribute Wasm-eBPF programs in [`OCI`](https://opencontainers.org/) images, please refer to [eunomia-bpf](https://github.com/eunomia-bpf/eunomia-bpf) repo.
 
-## 🔨 Examples
+## Examples
 
 See the [examples](examples) directory for examples of eBPF programs written in C, Rust, Go and compiled to WASM.
 
@@ -103,7 +103,7 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 - [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
 - [sockops](examples/sockops): Add the pid int tcp option in syn packet.
 
-## 📚 How it works
+## How it works
 
 An eBPF application typically consists of two parts: the `user space part` and `the kernel space part`. With wasm-bpf, the user space part is executed in a WebAssembly (Wasm) sandbox while the kernel space part is executed in the eBPF runtime in the Linux kernel. This separation of concerns allows for greater flexibility and security in developing and running eBPF programs, as well as the ability to leverage the benefits of both Wasm and eBPF.
 
@@ -125,7 +125,7 @@ A Wasm module could load and control multiple eBPF programs at the same time, an
 
 We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI/issues/513).
 
-## 🤖 Build the runtime
+## Build the runtime
 
 We have two types of runtime samples:
 
