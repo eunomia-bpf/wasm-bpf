@@ -9,8 +9,12 @@ mod utils;
 
 use anyhow::{anyhow, Context};
 use state::AppState;
+use wasi_common::{
+    pipe::{ReadPipe, WritePipe},
+    WasiFile,
+};
 use wasmtime::{Engine, Linker, Module, Store};
-use wasmtime_wasi::WasiCtxBuilder;
+use wasmtime_wasi::{stdio, WasiCtxBuilder};
 
 use crate::func::{
     attach::wasm_attach_bpf_program, close::wasm_close_bpf_object,
@@ -27,6 +31,53 @@ pub struct Config {
     pub callback_export_name: String,
     /// Wrapper module name for go sdk, for example "callback-wrapper"
     pub wrapper_module_name: String,
+    /// stdin file for receiving data from the host
+    pub stdin: Box<dyn WasiFile>,
+    /// stdout file for sending data to the host
+    pub stdout: Box<dyn WasiFile>,
+    /// stderr file for sending error to the host
+    pub stderr: Box<dyn WasiFile>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            callback_export_name: String::new(),
+            wrapper_module_name: String::new(),
+            stdin: Box::new(stdio::stdin()),
+            stdout: Box::new(stdio::stdout()),
+            stderr: Box::new(stdio::stderr()),
+        }
+    }
+}
+
+impl Config {
+    /// Set the callback values for the Wasm module.
+    /// The tiny go sdk requires a wrapper module and a callback export name.
+    pub fn set_callback_values(
+        &mut self,
+        callback_export_name: String,
+        wrapper_module_name: String,
+    ) {
+        self.callback_export_name = callback_export_name;
+        self.wrapper_module_name = wrapper_module_name;
+    }
+    /// Create a new Config with custom values.
+    pub fn new(
+        callback_export_name: String,
+        wrapper_module_name: String,
+        stdin: Box<dyn WasiFile>,
+        stdout: Box<dyn WasiFile>,
+        stderr: Box<dyn WasiFile>,
+    ) -> Self {
+        Self {
+            callback_export_name,
+            wrapper_module_name,
+            stdin,
+            stdout,
+            stderr,
+        }
+    }
 }
 
 /// Run a Wasm eBPF module with args
@@ -41,7 +92,9 @@ pub fn run_wasm_bpf_module(
         .with_context(|| anyhow!("Failed to add wasmtime_wasi to linker"))?;
 
     let wasi = WasiCtxBuilder::new()
-        .inherit_stdio()
+        .stdin(config.stdin)
+        .stdout(config.stdout)
+        .stderr(config.stderr)
         .args(args)
         .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
         .build();

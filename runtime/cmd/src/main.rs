@@ -47,6 +47,7 @@ fn main() -> anyhow::Result<()> {
         Config {
             callback_export_name: args.callback_export_name,
             wrapper_module_name: args.wrapper_module_name,
+            ..Default::default()
         },
     )
 }
