@@ -9,10 +9,7 @@ mod utils;
 
 use anyhow::{anyhow, Context};
 use state::AppState;
-use wasi_common::{
-    pipe::{ReadPipe, WritePipe},
-    WasiFile,
-};
+use wasi_common::WasiFile;
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{stdio, WasiCtxBuilder};
 
@@ -42,8 +39,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            callback_export_name: String::new(),
-            wrapper_module_name: String::new(),
+            callback_export_name: String::default(),
+            wrapper_module_name: String::default(),
             stdin: Box::new(stdio::stdin()),
             stdout: Box::new(stdio::stdout()),
             stderr: Box::new(stdio::stderr()),
@@ -132,4 +129,28 @@ pub fn run_wasm_bpf_module(
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::PathBuf;
+    use std::thread;
+
+    #[test]
+    fn test_run_wasm_bpf_module() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests");
+        path.push("execve.wasm");
+        let mut file = File::open(path).unwrap();
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).unwrap();
+        let args = vec!["test".to_string()];
+        let config = Config::default();
+        // Run the Wasm module for 3 seconds in another thread
+        thread::spawn(move || {
+            let result = run_wasm_bpf_module(&buffer, &args, config);
+            assert!(result.is_ok());
+        });
+        thread::sleep(std::time::Duration::from_secs(3));
+    }
+}
