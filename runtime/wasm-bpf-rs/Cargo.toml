@@ -13,6 +13,6 @@ anyhow = "1.0.69"
 flexi_logger = "0.25.1"
 libbpf-rs = "0.19.1"
 log = "0.4.17"
-wasmtime = "5.0.0"
+wasmtime = "5.0.1"
 wasmtime-wasi = "5.0.0"
 
