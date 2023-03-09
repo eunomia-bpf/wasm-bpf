@@ -26,6 +26,16 @@ jobs:
           sudo dpkg -i tinygo_0.27.0_amd64.deb
     - name: Build
       run: make build-rust
+    - name: test wasm-bpf-rs
+      run:  cd runtime/wasm-bpf-rs && make test
+    - name: Upload analysis results to GitHub
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: compiler/cmd/rust-clippy-results.sarif
+        wait-for-processing: true
+
+    - name: Code coverage using Codecov
+      run: bash <(curl -s https://codecov.io/bash)
     - name: examples with rust runtime
       run: IMPL=rust make -C examples
     - name: Upload build result
