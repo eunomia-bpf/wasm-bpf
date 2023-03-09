@@ -1,3 +1,4 @@
 target
 dump*
 wasm-bpf
+*.profraw

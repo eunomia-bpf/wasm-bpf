@@ -1,3 +1,6 @@
 target
 dump*
 wasm-bpf
+coverage
+lcov.info
+rust-clippy-results.sarif
