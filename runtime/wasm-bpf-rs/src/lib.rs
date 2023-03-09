@@ -136,21 +136,26 @@ mod tests {
     use std::path::PathBuf;
     use std::thread;
 
-    #[test]
-    fn test_run_wasm_bpf_module() {
+    fn test_example(name: &str, config: Config) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("tests");
-        path.push("execve.wasm");
+        path.push(name);
         let mut file = File::open(path).unwrap();
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).unwrap();
         let args = vec!["test".to_string()];
-        let config = Config::default();
         // Run the Wasm module for 3 seconds in another thread
         thread::spawn(move || {
             let result = run_wasm_bpf_module(&buffer, &args, config);
             assert!(result.is_ok());
         });
         thread::sleep(std::time::Duration::from_secs(3));
+    }
+
+    #[test]
+    fn test_run_wasm_bpf_module() {
+        test_example("execve.wasm", Config::default());
+        test_example("bootstrap.wasm", Config::default());
+        test_example("runqlat.wasm", Config::default());
     }
 }
