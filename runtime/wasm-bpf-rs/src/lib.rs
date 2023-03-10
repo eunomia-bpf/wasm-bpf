@@ -39,8 +39,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            callback_export_name: String::default(),
-            wrapper_module_name: String::default(),
+            callback_export_name: String::from("callback-wrapper"),
+            wrapper_module_name: String::from("go-callback"),
             stdin: Box::new(stdio::stdin()),
             stdout: Box::new(stdio::stdout()),
             stderr: Box::new(stdio::stderr()),
@@ -130,13 +130,15 @@ pub fn run_wasm_bpf_module(
 
 #[cfg(test)]
 mod tests {
+    use wasi_common::pipe::WritePipe;
+
     use super::*;
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
     use std::thread;
 
-    fn test_example(name: &str, config: Config) {
+    fn test_example(name: &str, config: Config, timeout_sec: u64) {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("tests");
         path.push(name);
@@ -149,18 +151,52 @@ mod tests {
             let result = run_wasm_bpf_module(&buffer, &args, config);
             assert!(result.is_ok());
         });
-        thread::sleep(std::time::Duration::from_secs(3));
+        thread::sleep(std::time::Duration::from_secs(timeout_sec));
+        // kill the thread
     }
 
     #[test]
-    fn test_run_wasm_bpf_module() {
-        test_example("execve.wasm", Config::default());
-        test_example("bootstrap.wasm", Config::default());
-        test_example("runqlat.wasm", Config::default());
-        test_example("opensnoop.wasm", Config::default());
-        test_example("lsm.wasm", Config::default());
-        test_example("rust-bootstrap.wasm", Config::default());
-        test_example("sockfilter.wasm", Config::default());
-        test_example("sockops.wasm", Config::default());
+    fn test_run_tracing_wasm_bpf_module() {
+        test_example("execve.wasm", Config::default(), 3);
+        test_example("bootstrap.wasm", Config::default(), 3);
+        test_example("opensnoop.wasm", Config::default(), 3);
+        test_example("lsm.wasm", Config::default(), 3);
+        test_example("rust-bootstrap.wasm", Config::default(), 3);
+    }
+
+    #[test]
+    fn test_run_network_wasm_bpf_module() {
+        test_example("sockfilter.wasm", Config::default(), 3);
+        test_example("sockops.wasm", Config::default(), 3);
+    }
+
+    #[test]
+    fn test_run_wasm_bpf_module_maps() {
+        test_example("runqlat.wasm", Config::default(), 3);
+    }
+
+    #[test]
+    fn test_run_wasm_bpf_module_with_callback() {
+        let mut config = Config::default();
+        config.set_callback_values(
+            String::from("go-callback"),
+            String::from("callback-wrapper"),
+        );
+        test_example("go-execve.wasm", config, 3);
+    }
+
+    #[test]
+    fn test_receive_wasm_bpf_module_output() {
+        let stdout = WritePipe::new_in_memory();
+        let stderr = WritePipe::new_in_memory();
+        let config = Config::new(
+            String::from("go-callback"),
+            String::from("callback-wrapper"),
+            Box::new(stdio::stdin()),
+            Box::new(stdout.clone()),
+            Box::new(stderr),
+        );
+        test_example("execve.wasm", config, 3);
+        // read from the WritePipe
     }
 }
