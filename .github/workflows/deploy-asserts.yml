@@ -30,25 +30,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: get submodule
-        run:  git submodule update --init --recursive
       - name: install deps
         run: |
             sudo make install-deps
             make /opt/wasi-sdk
-            wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_amd64.deb
-            sudo dpkg -i tinygo_0.27.0_amd64.deb
+            make tinygo
+      - name: Cache
+        uses: actions/cache@v3.3.0
+
+        with:
+          path: |
+            Makefile
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+      - name: get submodule
+        run:  git submodule update --init --recursive
       - name: make
         run: make -C runtime/cpp
-      - name: Install rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            override: true
-      - name: examples with rust runtime
-        run: IMPL=rust make -C examples
       - name: examples with cpp runtime
-        run: IMPL=cpp  make -C examples
+        run: IMPL=cpp make -C examples
 
       - name: Setup Pages
         uses: actions/configure-pages@v1
@@ -58,5 +57,5 @@ jobs:
           # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploymen
         uses: actions/deploy-pages@main

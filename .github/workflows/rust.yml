@@ -16,14 +16,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: get submodule
-      run:  git submodule update --init --recursive
-    - name: Install dependencies
+    - name: install deps
       run: |
           sudo make install-deps
           make /opt/wasi-sdk
-          wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_amd64.deb
-          sudo dpkg -i tinygo_0.27.0_amd64.deb
+          make tinygo
+    - name: Cache
+      uses: actions/cache@v3.3.0
+
+      with:
+        path: |
+          Makefile
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: get submodule
+      run:  git submodule update --init --recursive
     - name: Build
       run: make build-rust
     - name: test wasm-bpf-rs

@@ -27,7 +27,6 @@ var obj []byte
 
 //export go-callback
 func callback(ctx, data, size uint32) uint32 {
-	// I'm not good at Go...
 	/*
 	   #define COMM_SIZE 352
 	   struct comm_event {
