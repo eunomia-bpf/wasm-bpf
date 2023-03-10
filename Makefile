@@ -24,6 +24,10 @@ install-deps: ## install deps
 	tar -zxf wasi-sdk-17.0-linux.tar.gz
 	sudo mkdir -p /opt/wasi-sdk/ && sudo mv wasi-sdk-17.0/* /opt/wasi-sdk/
 
+tinygo:
+	wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_amd64.deb
+    sudo dpkg -i tinygo_0.27.0_amd64.deb
+
 test:
 	rm -rf runtime/cpp/build
 	cd runtime/cpp && mkdir build && cd build && cmake .. && make

@@ -2,3 +2,4 @@
 build/
 examples/wasm-bpf
 wasi-sdk-*-linux.tar.gz
+tinygo_0.27.0_amd64.deb
