@@ -23,6 +23,11 @@ jobs:
           make tinygo
     - name: Cache
       uses: actions/cache@v3.3.0
+
+      with:
+        path: |
+          Makefile
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: get submodule
       run:  git submodule update --init --recursive
     - name: Build
