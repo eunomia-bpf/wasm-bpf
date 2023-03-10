@@ -37,6 +37,11 @@ jobs:
             make tinygo
       - name: Cache
         uses: actions/cache@v3.3.0
+
+        with:
+          path: |
+            Makefile
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
       - name: get submodule
         run:  git submodule update --init --recursive
       - name: make
@@ -52,5 +57,5 @@ jobs:
           # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploymen
         uses: actions/deploy-pages@main
