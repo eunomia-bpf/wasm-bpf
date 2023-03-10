@@ -157,5 +157,10 @@ mod tests {
         test_example("execve.wasm", Config::default());
         test_example("bootstrap.wasm", Config::default());
         test_example("runqlat.wasm", Config::default());
+        test_example("opensnoop.wasm", Config::default());
+        test_example("lsm.wasm", Config::default());
+        test_example("rust-bootstrap.wasm", Config::default());
+        test_example("sockfilter.wasm", Config::default());
+        test_example("sockops.wasm", Config::default());
     }
 }
