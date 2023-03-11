@@ -14,8 +14,9 @@
 #include <vector>
 
 #include "bpf-api.h"
-#include "maps_test.h"
-// #include <bpf/bpf.h>
+extern "C" {
+#include <bpf/libbpf.h>
+}
 
 #define TASK_COMM_LEN 16
 #define MAX_SLOTS 26
@@ -25,14 +26,14 @@ struct hist {
     char comm[TASK_COMM_LEN];
 } __attribute__((packed));
 
-static int print_log2_hists(int fd) {
+static int print_log2_hists(bpf_map* map) {
     int err;
     uint32_t lookup_key = -2, next_key;
     struct hist hist;
-
-    while (!(err = bpf_map_get_next_key(fd, &lookup_key, &next_key))) {
-
-        err = bpf_map_lookup_elem(fd, &next_key, &hist);
+    while (!(err = bpf_map__get_next_key(map, &lookup_key, &next_key,
+                                         sizeof(next_key)))) {
+        err = bpf_map__lookup_elem(map, &next_key, sizeof(next_key), &hist,
+                                   sizeof(hist), 0);
         if (err < 0) {
             fprintf(stderr, "failed to lookup hist: %d\n", err);
             return -1;
@@ -46,8 +47,9 @@ static int print_log2_hists(int fd) {
     printf("err %d\n", err);
 
     lookup_key = -2;
-    while (!(err = bpf_map_get_next_key(fd, &lookup_key, &next_key))) {
-        err = bpf_map_delete_elem(fd, &next_key);
+    while (!(err = bpf_map__get_next_key(map, &lookup_key, &next_key,
+                                         sizeof(next_key)))) {
+        err = bpf_map__delete_elem(map, &next_key, sizeof(next_key), 0);
         if (err < 0) {
             fprintf(stderr, "failed to cleanup hist : %d\n", err);
             return -1;
@@ -57,9 +59,9 @@ static int print_log2_hists(int fd) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     init_libbpf();
-    wasm_bpf_program *program = new wasm_bpf_program();
+    wasm_bpf_program* program = new wasm_bpf_program();
     std::ifstream runqlat("../../test/asserts/runqlat.bpf.o");
     std::vector<char> runqlat_str((std::istreambuf_iterator<char>(runqlat)),
                                   std::istreambuf_iterator<char>());
@@ -87,7 +89,7 @@ int main(int argc, char **argv) {
         delete program;
         return -1;
     }
-    struct tm *tm;
+    struct tm* tm;
     char ts[32];
     time_t t;
     int fd = program->bpf_map_fd_by_name("hists");
@@ -101,9 +103,10 @@ int main(int argc, char **argv) {
         tm = localtime(&t);
         strftime(ts, sizeof(ts), "%H:%M:%S", tm);
         printf("%-8s\n", ts);
-
-        int err = print_log2_hists(fd);
-        if (err) break;
+        bpf_map* map = program->map_ptr_by_fd(fd);
+        int err = print_log2_hists(map);
+        if (err)
+            break;
         count++;
     }
     delete program;

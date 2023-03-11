@@ -32,10 +32,10 @@ jobs:
       run: make -C runtime/cpp build-lib
     - name: examples with cpp runtime
       run: IMPL=cpp  make -C examples
-    # - name: make test
-    #   run: |
-    #     make clean
-    #     make -C runtime/cpp test
+    - name: make test
+      run: |
+        make clean
+        make -C runtime/cpp test
     - name: Upload build result
       uses: actions/upload-artifact@v2.3.1
       with:

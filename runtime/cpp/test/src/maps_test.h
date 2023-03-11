@@ -178,46 +178,6 @@ enum bpf_attach_type {
 	__MAX_BPF_ATTACH_TYPE
 };
 
-static int
-bpf_map_update_elem(int fd, const void *key, const void *value, uint64_t flags)
-{
-    return bpf_map_operate(fd, (int)BPF_MAP_UPDATE_ELEM, (void *)key,
-                                (void *)value, NULL, flags);
-}
 
-static int
-bpf_map_lookup_elem(int fd, const void *key, void *value)
-{
-    return bpf_map_operate(fd, (int)BPF_MAP_LOOKUP_ELEM, (void *)key, value,
-                                NULL, 0);
-}
-
-static int
-bpf_map_lookup_elem_flags(int fd, const void *key, void *value, uint64_t flags)
-{
-    return bpf_map_operate(fd, BPF_MAP_LOOKUP_ELEM, (void *)key, value,
-                                NULL, flags);
-}
-
-static int
-bpf_map_delete_elem(int fd, const void *key)
-{
-    return bpf_map_operate(fd, BPF_MAP_DELETE_ELEM, (void *)key, NULL,
-                                NULL, 0);
-}
-
-static int
-bpf_map_delete_elem_flags(int fd, const void *key, uint64_t flags)
-{
-    return bpf_map_operate(fd, BPF_MAP_DELETE_ELEM, (void *)key, NULL,
-                                NULL, flags);
-}
-
-static int
-bpf_map_get_next_key(int fd, const void *key, void *next_key)
-{
-    return bpf_map_operate(fd, BPF_MAP_GET_NEXT_KEY, (void *)key, NULL,
-                                next_key, 0);
-}
 
 #endif /* __BPF_H__ */
