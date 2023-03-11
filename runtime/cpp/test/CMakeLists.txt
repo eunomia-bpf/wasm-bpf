@@ -14,7 +14,9 @@ verbose_message("Adding tests under ${CMAKE_PROJECT_NAME}Tests...")
 foreach(file ${test_sources})
   string(REGEX REPLACE "(.*/)([a-zA-Z0-9_ ]+)(\.cpp|\.c)" "\\2" test_name ${file})
   add_executable(${test_name}_Tests ${file})
-  
+  add_dependencies(${test_name}_Tests libbpf-build)
+  target_link_libraries(${test_name}_Tests PUBLIC ${LIBBPF_LIBRARIES} -lelf -lz)
+  target_include_directories(${test_name}_Tests SYSTEM INTERFACE ${LIBBPF_INCLUDE_DIRS})
 
   #
   # Set the compiler standard
