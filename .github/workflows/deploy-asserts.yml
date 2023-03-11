@@ -51,11 +51,14 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v1
+        if: ${{ github.repository_owner == 'eunomia-bpf' }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
+        if: ${{ github.repository_owner == 'eunomia-bpf' }}
         with:
           # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
+        if: ${{ github.repository_owner == 'eunomia-bpf' }}
         id: deploymen
         uses: actions/deploy-pages@main
