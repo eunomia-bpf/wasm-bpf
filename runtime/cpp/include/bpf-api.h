@@ -73,11 +73,9 @@ class wasm_bpf_program {
     bpf_map* map_ptr_by_fd(int fd);
 };
 
-/// @brief A user data structure whose instance will be shared in a wasm
-/// runtime.
-struct bpf_program_manager {
-    std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>> programs;
-};
+/// @brief A map to hold bpf programs handles. Instance of this type will be shared in a wasm program
+using bpf_program_manager = std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>>;
+
 enum bpf_map_cmd {
     _BPF_MAP_LOOKUP_ELEM = 1,
     _BPF_MAP_UPDATE_ELEM,
