@@ -75,9 +75,7 @@ class wasm_bpf_program {
 };
 
 /// @brief A user data structure whose instance will be shared in a wasm
-/// runtime. It will store a map containing id->bpf_program and map fds opened
-/// by a bpf program
-/// Note that we need to remove fds opened by a bpf program when it's closed
+/// runtime.
 struct bpf_program_manager {
     std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>> programs;
 };
