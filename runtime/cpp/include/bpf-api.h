@@ -65,8 +65,7 @@ class wasm_bpf_program {
 
    public:
     int bpf_map_fd_by_name(const char *name);
-    int load_bpf_object(const void* obj_buf,
-                        size_t obj_buf_sz);
+    int load_bpf_object(const void* obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char *name, const char *attach_target);
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
                         uint32_t ctx, void *buffer_data, size_t max_size,
