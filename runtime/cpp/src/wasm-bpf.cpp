@@ -312,28 +312,28 @@ uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
     if (res < 0) return 0;
     auto key = (uint64_t)program.get();
-    bpf_programs->programs.emplace(key, std::move(program));
+    bpf_programs->emplace(key, std::move(program));
     return key;
 }
 
 int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
     bpf_program_manager* bpf_programs =
         (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
-    if (!bpf_programs->programs.count(program))
+    if (!bpf_programs->count(program))
         return 0;
-    return !bpf_programs->programs.erase(program);
+    return !bpf_programs->erase(program);
 }
 
 int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
                             char *name, char *attach_target) {
     bpf_program_manager* bpf_programs =
         (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+    if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string pointer passed from wasm program is valid
         if ((!verify_wasm_string_by_native_addr(exec_env, name)) ||
             (!verify_wasm_string_by_native_addr(exec_env, attach_target)))
             return -EFAULT;
-        return bpf_programs->programs[program]->attach_bpf_program(name,
+        return (*bpf_programs)[program]->attach_bpf_program(name,
                                                             attach_target);
     }
     return -EINVAL;
@@ -344,11 +344,11 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
                          int max_size, int timeout_ms) {
     bpf_program_manager *bpf_programs =
         (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+    if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the buffer is valid and can hold the data received
         if (!verify_wasm_buffer_by_native_addr(exec_env, data, (uint32_t)max_size))
             return -EFAULT;
-        return bpf_programs->programs[program]->bpf_buffer_poll(
+        return (*bpf_programs)[program]->bpf_buffer_poll(
             exec_env, fd, sample_func, ctx, data, (size_t)max_size, timeout_ms);
     }
     return -EINVAL;
@@ -358,11 +358,11 @@ int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
                             const char *name) {
     bpf_program_manager *bpf_programs =
         (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+    if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string is valid
         if (!verify_wasm_string_by_native_addr(exec_env, name))
             return -EFAULT;
-        return bpf_programs->programs[program]->bpf_map_fd_by_name(name);
+        return (*bpf_programs)[program]->bpf_map_fd_by_name(name);
     }
     return -EINVAL;
 }
