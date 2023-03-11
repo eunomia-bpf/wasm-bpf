@@ -28,12 +28,14 @@ BROWSER := python -c "$$BROWSER_PYSCRIPT"
 INSTALL_LOCATION := ~/.local
 
 build: ## build as a tool
-	rm -rf build/
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release # -Dwasm-bpf_ENABLE_ASAN=1 
 	cmake --build build --config Release 
 
+build-debug: ## build debug version
+	cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -Dwasm-bpf_ENABLE_ASAN=1 
+	cmake --build build --config Debug
+
 build-lib: ## build as a library
-	rm -rf build/
 	cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -Dwasm-bpf_BUILD_EXECUTABLE=0 # -Dwasm-bpf_ENABLE_ASAN=1 
 	cmake --build build --config Release 
 
@@ -47,7 +49,7 @@ help:
 
 
 test: ## run tests quickly with ctest
-	sudo rm -rf build/
+	cd ./test && make
 	cmake -Bbuild -DCMAKE_INSTALL_PREFIX=$(INSTALL_LOCATION) -Dwasm-bpf_ENABLE_UNIT_TESTING=1 -Dwasm-bpf_ENABLE_ASAN=1 -Dwasm-bpf_ENABLE_CODE_COVERAGE=1
 	cmake --build build
 	cd build/ && sudo ctest -VV
@@ -76,3 +78,4 @@ format: ## format the project sources
 clean: ## clean the project build files
 	rm -rf build/
 	rm -rf docs/
+	cd test && make clean
