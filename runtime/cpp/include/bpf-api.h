@@ -56,7 +56,6 @@ class bpf_buffer {
     virtual ~bpf_buffer() = default;
 };
 
-
 /// @brief bpf program instance
 class wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
