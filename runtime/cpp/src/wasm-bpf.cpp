@@ -31,8 +31,6 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
     if (DEBUG_LIBBPF_RUNTIME) return vfprintf(stderr, format, args);
     return 0;
 }
-using bpf_program_manager =
-    std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>>;
 
 /// @brief initialize libbpf library
 void init_libbpf(void) {
@@ -45,14 +43,6 @@ static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
     bpf_buffer_sample(ctx, data, size);
 }
 
-/// @brief get the bpf map in a object by fd
-static struct bpf_map *bpf_obj_get_map_by_fd(int fd, bpf_object *obj) {
-    bpf_map *map;
-    bpf_object__for_each_map(map, obj) {
-        if (bpf_map__fd(map) == fd) return map;
-    }
-    return NULL;
-}
 
 #define PERF_BUFFER_PAGES 64
 
@@ -124,6 +114,26 @@ int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
     return 0;
 }
 
+/// @brief verify that if an native address is valid in the wasm memory space
+static inline bool verify_wasm_buffer_by_native_addr(wasm_exec_env_t exec_env,
+                                                     void* ptr,
+                                                     uint32_t length) {
+    wasm_module_inst_t module = wasm_runtime_get_module_inst(exec_env);
+    if (!module)
+        return false;
+
+    return wasm_runtime_validate_native_addr(module, ptr, length);
+}
+/// @brief verify that if a all chars of a zero-terminated string sit in the valid wasm memory space
+static inline bool verify_wasm_string_by_native_addr(wasm_exec_env_t exec_env,
+                                                     const char* str) {
+    wasm_module_inst_t module = wasm_runtime_get_module_inst(exec_env);
+    if (!module)
+        return false;
+    uint32_t wasm_addr = wasm_runtime_addr_native_to_app(module, (void*)str);
+    return wasm_runtime_validate_app_str_addr(module, wasm_addr);
+}
+
 /// @brief sample the perf buffer and ring buffer
 static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
     bpf_buffer *buffer = (bpf_buffer *)ctx;
@@ -145,6 +155,17 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
 int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
     return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
+/// @brief get map pointer by fd through iterating over all maps
+bpf_map* wasm_bpf_program::map_ptr_by_fd(int fd) {
+    bpf_map* curr = nullptr;
+    bpf_map__for_each(curr, obj.get()) {
+        if (bpf_map__fd(curr) == fd) {
+            return curr;
+        }
+    }
+    return nullptr;
+}
+
 /// @brief load all bpf programs and maps in a object file.
 int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
@@ -212,7 +233,7 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
                                       int timeout_ms) {
     if (buffer.get() == nullptr) {
         // create buffer
-        auto map = bpf_obj_get_map_by_fd(fd, obj.get());
+        auto map = this->map_ptr_by_fd(fd);
         buffer = bpf_buffer__new(map);
         buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
         return 0;
@@ -228,16 +249,47 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
 }
 
 /// a wrapper function to call the bpf syscall
-int bpf_map_operate(int fd, int cmd, void *key, void *value, void *next_key,
+int bpf_map_operate(wasm_exec_env_t exec_env,
+                    int fd,
+                    int cmd,
+                    void* key,
+                    void* value,
+                    void* next_key,
                     uint64_t flags) {
+    bpf_map_info map_info;
+    memset(&map_info, 0, sizeof(map_info));
+    __u32 info_len = sizeof(map_info);
+    int err;
+    if ((err = bpf_map_get_info_by_fd(fd, &map_info, &info_len)) != 0) {
+        // Invalid map fd
+        return err;
+    }
+    auto key_size = map_info.key_size;
+    auto value_size = map_info.value_size;
+
+    auto verify_size = [&](void* ptr, uint32_t size) -> bool {
+        return verify_wasm_buffer_by_native_addr(exec_env, ptr, size);
+    };
     switch (cmd) {
         case BPF_MAP_GET_NEXT_KEY:
+            if (!verify_size(key, key_size) || !verify_size(next_key, key_size))
+                return -EFAULT;
+
             return bpf_map_get_next_key(fd, key, next_key);
         case BPF_MAP_LOOKUP_ELEM:
+            if (!verify_size(key, key_size) || !verify_size(value, value_size))
+                return -EFAULT;
+
             return bpf_map_lookup_elem_flags(fd, key, value, flags);
         case BPF_MAP_UPDATE_ELEM:
+            if (!verify_size(key, key_size) || !verify_size(value, value_size))
+                return -EFAULT;
+
             return bpf_map_update_elem(fd, key, value, flags);
         case BPF_MAP_DELETE_ELEM:
+            if (!verify_size(key, key_size))
+                return -EFAULT;
+
             return bpf_map_delete_elem_flags(fd, key, flags);
         default:  // More syscall commands can be allowed here
             return -EINVAL;
@@ -249,28 +301,39 @@ extern "C" {
 uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
                               int obj_buf_sz) {
     if (obj_buf_sz <= 0) return 0;
+    // Ensure that the buffer passed from wasm program is valid
+    if (!verify_wasm_buffer_by_native_addr(exec_env, obj_buf,
+                                           (uint32_t)obj_buf_sz)) {
+        return 0;
+    }
     bpf_program_manager *bpf_programs =
         (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
     auto program = std::make_unique<wasm_bpf_program>();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
     if (res < 0) return 0;
     auto key = (uint64_t)program.get();
-    bpf_programs->emplace(key, std::move(program));
+    bpf_programs->programs.emplace(key, std::move(program));
     return key;
 }
 
 int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
-    bpf_program_manager *bpf_programs =
-        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    return !bpf_programs->erase(program);
+    bpf_program_manager* bpf_programs =
+        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    if (!bpf_programs->programs.count(program))
+        return 0;
+    return !bpf_programs->programs.erase(program);
 }
 
 int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
                             char *name, char *attach_target) {
-    bpf_program_manager *bpf_programs =
-        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->find(program) != bpf_programs->end()) {
-        return (*bpf_programs)[program]->attach_bpf_program(name,
+    bpf_program_manager* bpf_programs =
+        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+        // Ensure that the string pointer passed from wasm program is valid
+        if ((!verify_wasm_string_by_native_addr(exec_env, name)) ||
+            (!verify_wasm_string_by_native_addr(exec_env, attach_target)))
+            return -EFAULT;
+        return bpf_programs->programs[program]->attach_bpf_program(name,
                                                             attach_target);
     }
     return -EINVAL;
@@ -281,8 +344,11 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
                          int max_size, int timeout_ms) {
     bpf_program_manager *bpf_programs =
         (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->find(program) != bpf_programs->end()) {
-        return (*bpf_programs)[program]->bpf_buffer_poll(
+    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+        // Ensure that the buffer is valid and can hold the data received
+        if (!verify_wasm_buffer_by_native_addr(exec_env, data, (uint32_t)max_size))
+            return -EFAULT;
+        return bpf_programs->programs[program]->bpf_buffer_poll(
             exec_env, fd, sample_func, ctx, data, (size_t)max_size, timeout_ms);
     }
     return -EINVAL;
@@ -292,16 +358,25 @@ int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
                             const char *name) {
     bpf_program_manager *bpf_programs =
         (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
-    if (bpf_programs->find(program) != bpf_programs->end()) {
-        return (*bpf_programs)[program]->bpf_map_fd_by_name(name);
+    if (bpf_programs->programs.find(program) != bpf_programs->programs.end()) {
+        // Ensure that the string is valid
+        if (!verify_wasm_string_by_native_addr(exec_env, name))
+            return -EFAULT;
+        return bpf_programs->programs[program]->bpf_map_fd_by_name(name);
     }
     return -EINVAL;
 }
 
 /// @brief a wrapper function to the bpf syscall to operate the bpf maps
-int wasm_bpf_map_operate(wasm_exec_env_t exec_env, int fd, int cmd, void *key,
-                         void *value, void *next_key, uint64_t flags) {
-    return bpf_map_operate(fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
+int wasm_bpf_map_operate(wasm_exec_env_t exec_env,
+                         int fd,
+                         int cmd,
+                         void* key,
+                         void* value,
+                         void* next_key,
+                         uint64_t flags) {
+    return bpf_map_operate(
+        exec_env, fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
 }
 }
 
@@ -354,8 +429,8 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
         printf("Create wasm execution environment failed.\n");
         return -1;
     }
-    std::unordered_set<std::unique_ptr<wasm_bpf_program>> bpf_programs;
-    wasm_runtime_set_user_data(exec_env, &bpf_programs);
+    bpf_program_manager prog_manager;
+    wasm_runtime_set_user_data(exec_env, &prog_manager);
     wasm_runtime_set_module_inst(exec_env, module_inst);
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The start wasm function is not found.\n");
@@ -367,7 +442,7 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
                wasm_runtime_get_exception(module_inst));
         return -1;
     }
-    exit_code = wasm_runtime_get_wasi_exit_code(module_inst);
+    exit_code = (int)wasm_runtime_get_wasi_exit_code(module_inst);
     if (exec_env) wasm_runtime_destroy_exec_env(exec_env);
     if (module_inst) {
         if (wasm_buffer) {

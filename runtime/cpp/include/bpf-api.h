@@ -11,8 +11,9 @@
 #include <cstdlib>
 #include <memory>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
-
+#include <bpf/libbpf.h>
 #include "wasm_export.h"
 
 #define POLL_TIMEOUT_MS 100
@@ -55,6 +56,7 @@ class bpf_buffer {
     virtual ~bpf_buffer() = default;
 };
 
+
 /// @brief bpf program instance
 class wasm_bpf_program {
     std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{
@@ -64,13 +66,22 @@ class wasm_bpf_program {
 
    public:
     int bpf_map_fd_by_name(const char *name);
-    int load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
+    int load_bpf_object(const void* obj_buf,
+                        size_t obj_buf_sz);
     int attach_bpf_program(const char *name, const char *attach_target);
     int bpf_buffer_poll(wasm_exec_env_t exec_env, int fd, int32_t sample_func,
                         uint32_t ctx, void *buffer_data, size_t max_size,
                         int timeout_ms);
+    bpf_map* map_ptr_by_fd(int fd);
 };
 
+/// @brief A user data structure whose instance will be shared in a wasm
+/// runtime. It will store a map containing id->bpf_program and map fds opened
+/// by a bpf program
+/// Note that we need to remove fds opened by a bpf program when it's closed
+struct bpf_program_manager {
+    std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>> programs;
+};
 enum bpf_map_cmd {
     _BPF_MAP_LOOKUP_ELEM = 1,
     _BPF_MAP_UPDATE_ELEM,
