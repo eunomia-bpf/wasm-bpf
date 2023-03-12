@@ -18,7 +18,6 @@ jobs:
         clangFormatVersion: 14
         inplace: True
     - uses: EndBug/add-and-commit@v4
-      if: ${{ startsWith( github.action_repository , 'Officeyutong/') || startsWith( github.action_repository , 'eunomia-bpf/') }}
       with:
         message: 'Committing clang-format changes'
       env:
