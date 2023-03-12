@@ -7,7 +7,7 @@ lint() {
     local targets="examples wasm-sdk runtime/cpp/include runtime/cpp/test runtime/cpp/src"
     local clang_format="${1}"
 
-    if [ "$#" -ne 1 ]; then
+    if [ "$#" -lt 1 ]; then
         echo "please provide clang-format command. Usage ${0} `which clang-format`"
         exit 1
     fi
@@ -17,7 +17,7 @@ lint() {
         exit 1
     fi
     local ext_args="-Werror --dry-run"
-    if [ "${2}" != "-f" ]; then
+    if [ "${2}" = "-f" ]; then
         ext_args=""
     fi
     find ${targets} -type f -iname *.[ch] -o -iname *.cpp -o -iname *.[ch]xx \
