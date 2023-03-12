@@ -113,3 +113,51 @@ pub fn wasm_bpf_map_operate(
     };
     return 0;
 }
+
+#[cfg(test)]
+
+mod tests {
+    use std::ffi::c_void;
+
+    use libbpf_rs::{ObjectBuilder, libbpf_sys::{bpf_map_info, bpf_obj_get_info_by_fd}};
+
+    use crate::tests::get_test_file_path;
+
+    #[test]
+    fn test_retrive_key_value_size_by_bpf_obj_get_info_by_fd() {
+        /*
+            This function tests if `bpf_obj_get_info_by_fd` corrently works.
+            Here we use `bootstrap.bpf.o` to run the test.
+            Bootstrap will create two maps.
+        */
+        let bootstrap_elf = get_test_file_path("bootstrap.bpf.o");
+        let object = ObjectBuilder::default()
+            .open_file(bootstrap_elf)
+            .unwrap()
+            .load()
+            .unwrap();
+        // Iterate over maps, call `bpf_obj_get_info_by_fd` and compare with sizes that libbpf provides
+        for map in object.maps_iter() {
+            let mut map_info = unsafe { std::mem::zeroed::<bpf_map_info>() };
+            let mut info_len = std::mem::size_of::<bpf_map_info>() as u32;
+            let ret = unsafe {
+                bpf_obj_get_info_by_fd(
+                    map.fd(),
+                    &mut map_info as *mut bpf_map_info as *mut c_void,
+                    &mut info_len as *mut u32,
+                )
+            };
+            assert_eq!(ret, 0, "Failed to run `bpf_obj_get_info_by_fd`");
+            assert_eq!(
+                map.key_size(),
+                map_info.key_size,
+                "Different key size found"
+            );
+            assert_eq!(
+                map.value_size(),
+                map_info.value_size,
+                "Different value size found"
+            );
+        }
+    }
+}
