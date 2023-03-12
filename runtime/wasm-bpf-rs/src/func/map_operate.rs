@@ -119,7 +119,10 @@ pub fn wasm_bpf_map_operate(
 mod tests {
     use std::ffi::c_void;
 
-    use libbpf_rs::{ObjectBuilder, libbpf_sys::{bpf_map_info, bpf_obj_get_info_by_fd}};
+    use libbpf_rs::{
+        libbpf_sys::{bpf_map_info, bpf_obj_get_info_by_fd},
+        ObjectBuilder,
+    };
 
     use crate::tests::get_test_file_path;
 

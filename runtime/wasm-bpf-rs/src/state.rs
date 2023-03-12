@@ -30,7 +30,6 @@ impl WrapperObject {
     }
 }
 
-
 pub struct AppState {
     pub wasi: WasiCtx,
     pub next_object_id: u64,
