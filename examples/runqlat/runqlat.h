@@ -2,12 +2,12 @@
 #ifndef __RUNQLAT_H
 #define __RUNQLAT_H
 
-#define TASK_COMM_LEN	16
-#define MAX_SLOTS	26
+#define TASK_COMM_LEN 16
+#define MAX_SLOTS 26
 
 struct hist {
-	unsigned int slots[MAX_SLOTS];
-	char comm[TASK_COMM_LEN];
+    unsigned int slots[MAX_SLOTS];
+    char comm[TASK_COMM_LEN];
 } __attribute__((packed));
 
 #endif /* __RUNQLAT_H */

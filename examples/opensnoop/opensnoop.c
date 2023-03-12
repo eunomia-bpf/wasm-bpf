@@ -94,7 +94,6 @@ static int handle_event(void* ctx, void* data, size_t data_sz) {
     return 0;
 }
 
-
 int main(int argc, char** argv) {
     struct opensnoop_bpf* obj;
     __u64 time_end = 0;

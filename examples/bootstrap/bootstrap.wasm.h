@@ -19,6 +19,4 @@ struct event {
 } __attribute__((packed));
 static_assert(sizeof(struct event) == 168, "Size of event is not 168");
 
-
 #endif /* __VMLINUX_H__ */
-

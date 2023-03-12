@@ -11,7 +11,7 @@
 
 #include "bpf-api.h"
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     if (argc < 2) {
         printf("Usage: %s <wasm file> [wasm args]\n", argv[0]);
         return -1;
@@ -23,6 +23,6 @@ int main(int argc, char *argv[]) {
     std::ifstream file(argv[1]);
     std::vector<uint8_t> wasm_module((std::istreambuf_iterator<char>(file)),
                                      std::istreambuf_iterator<char>());
-    return wasm_main(wasm_module.data(), (unsigned int)wasm_module.size(), argc - 1,
-                     argv + 1);
+    return wasm_main(wasm_module.data(), (unsigned int)wasm_module.size(),
+                     argc - 1, argv + 1);
 }

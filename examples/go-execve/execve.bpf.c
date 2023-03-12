@@ -12,13 +12,13 @@ struct {
 struct execve_args {
     struct trace_entry common;
     int unused;
-    char *file;
-    char *const *argv;
-    char *const *envp;
+    char* file;
+    char* const* argv;
+    char* const* envp;
 };
 
 SEC("tp/syscalls/sys_enter_execve")
-int sys_enter_execve(struct execve_args *ctx) {
+int sys_enter_execve(struct execve_args* ctx) {
     struct comm_event comm;
     comm.pid = (int)(bpf_get_current_pid_tgid() & 0xFFFFFFFF);
     bpf_get_current_comm(&(comm.parent_proc[0]), sizeof(comm.parent_proc));
@@ -27,7 +27,7 @@ int sys_enter_execve(struct execve_args *ctx) {
     int start = 0;
     int end = COMM_SIZE - 1;
 
-    char *args[MAX_ARG_NUM];
+    char* args[MAX_ARG_NUM];
     int idx = 0;
     for (; idx < MAX_ARG_NUM; idx++) {
         if (bpf_probe_read_user(&args[idx], sizeof(args[idx]),
