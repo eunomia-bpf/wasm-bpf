@@ -61,5 +61,5 @@ pub fn wasm_load_bpf_object(
         },
     );
     debug!("Load bpf object done, id={}", next_id);
-    return next_id;
+    next_id
 }

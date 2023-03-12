@@ -27,5 +27,5 @@ pub fn wasm_bpf_map_fd_by_name(
         }
     };
 
-    return map.fd();
+    map.fd()
 }
