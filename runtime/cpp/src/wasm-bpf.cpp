@@ -22,13 +22,16 @@ extern "C" {
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 extern bool wasm_runtime_call_indirect(wasm_exec_env_t exec_env,
-                                       uint32_t element_indices, uint32_t argc,
+                                       uint32_t element_indices,
+                                       uint32_t argc,
                                        uint32_t argv[]);
 }
-static int bpf_buffer_sample(void *ctx, void *data, size_t size);
-static int libbpf_print_fn(enum libbpf_print_level level, const char *format,
+static int bpf_buffer_sample(void* ctx, void* data, size_t size);
+static int libbpf_print_fn(enum libbpf_print_level level,
+                           const char* format,
                            va_list args) {
-    if (DEBUG_LIBBPF_RUNTIME) return vfprintf(stderr, format, args);
+    if (DEBUG_LIBBPF_RUNTIME)
+        return vfprintf(stderr, format, args);
     return 0;
 }
 
@@ -39,19 +42,18 @@ void init_libbpf(void) {
 }
 
 /// @brief perf buffer sample callback
-static void perfbuf_sample_fn(void *ctx, int cpu, void *data, __u32 size) {
+static void perfbuf_sample_fn(void* ctx, int cpu, void* data, __u32 size) {
     bpf_buffer_sample(ctx, data, size);
 }
-
 
 #define PERF_BUFFER_PAGES 64
 
 class perf_buffer_wrapper : public bpf_buffer {
-    std::unique_ptr<perf_buffer, void (*)(perf_buffer *pb)> inner{
+    std::unique_ptr<perf_buffer, void (*)(perf_buffer* pb)> inner{
         nullptr, perf_buffer__free};
 
    public:
-    perf_buffer_wrapper(bpf_map *events) {
+    perf_buffer_wrapper(bpf_map* events) {
         bpf_map__set_type(events, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
         bpf_map__set_key_size(events, sizeof(int));
         bpf_map__set_value_size(events, sizeof(int));
@@ -59,8 +61,9 @@ class perf_buffer_wrapper : public bpf_buffer {
     int bpf_buffer__poll(int timeout_ms) override {
         return perf_buffer__poll(inner.get(), timeout_ms);
     }
-    int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
-                         void *ctx) override {
+    int bpf_buffer__open(int fd,
+                         bpf_buffer_sample_fn sample_cb,
+                         void* ctx) override {
         inner.reset(perf_buffer__new(fd, PERF_BUFFER_PAGES, perfbuf_sample_fn,
                                      NULL, ctx, NULL));
         return inner ? 0 : -EINVAL;
@@ -69,24 +72,27 @@ class perf_buffer_wrapper : public bpf_buffer {
 
 struct ring_buffer_wrapper : public bpf_buffer {
    public:
-    std::unique_ptr<ring_buffer, void (*)(ring_buffer *pb)> inner{
+    std::unique_ptr<ring_buffer, void (*)(ring_buffer* pb)> inner{
         nullptr, ring_buffer__free};
-    ring_buffer_wrapper(bpf_map *events) {
+    ring_buffer_wrapper(bpf_map* events) {
         bpf_map__set_autocreate(events, false);
     }
     int bpf_buffer__poll(int timeout_ms) override {
         return ring_buffer__poll(inner.get(), timeout_ms);
     }
-    int bpf_buffer__open(int fd, bpf_buffer_sample_fn sample_cb,
-                         void *ctx) override {
+    int bpf_buffer__open(int fd,
+                         bpf_buffer_sample_fn sample_cb,
+                         void* ctx) override {
         inner.reset(ring_buffer__new(fd, sample_cb, ctx, NULL));
         return inner ? 0 : -1;
     }
 };
 
 void bpf_buffer::set_callback_params(wasm_exec_env_t exec_env,
-                                     uint32_t sample_func, void *data,
-                                     size_t max_size, uint32_t ctx) {
+                                     uint32_t sample_func,
+                                     void* data,
+                                     size_t max_size,
+                                     uint32_t ctx) {
     callback_exec_env = exec_env;
     wasm_sample_function = sample_func;
     poll_data = data;
@@ -94,7 +100,7 @@ void bpf_buffer::set_callback_params(wasm_exec_env_t exec_env,
     wasm_ctx = ctx;
 }
 
-int bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
+int bpf_buffer::bpf_buffer_sample(void* data, size_t size) {
     size_t sample_size = size;
     if (max_poll_size < size) {
         sample_size = max_poll_size;
@@ -135,13 +141,13 @@ static inline bool verify_wasm_string_by_native_addr(wasm_exec_env_t exec_env,
 }
 
 /// @brief sample the perf buffer and ring buffer
-static int bpf_buffer_sample(void *ctx, void *data, size_t size) {
-    bpf_buffer *buffer = (bpf_buffer *)ctx;
+static int bpf_buffer_sample(void* ctx, void* data, size_t size) {
+    bpf_buffer* buffer = (bpf_buffer*)ctx;
     return buffer->bpf_buffer_sample(data, size);
 }
 
 /// @brief create a bpf buffer based on the object map type
-std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
+std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map* events) {
     bool use_ringbuf = bpf_map__type(events) == BPF_MAP_TYPE_RINGBUF;
     if (use_ringbuf) {
         return std::make_unique<ring_buffer_wrapper>(events);
@@ -152,7 +158,7 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map *events) {
 }
 
 /// Get the file descriptor of a map by name.
-int wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
+int wasm_bpf_program::bpf_map_fd_by_name(const char* name) {
     return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
 /// @brief get map pointer by fd through iterating over all maps
@@ -167,7 +173,7 @@ bpf_map* wasm_bpf_program::map_ptr_by_fd(int fd) {
 }
 
 /// @brief load all bpf programs and maps in a object file.
-int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
+int wasm_bpf_program::load_bpf_object(const void* obj_buf, size_t obj_buf_sz) {
     auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, NULL);
     if (!object) {
         return (int)libbpf_get_error(object);
@@ -176,7 +182,7 @@ int wasm_bpf_program::load_bpf_object(const void *obj_buf, size_t obj_buf_sz) {
     return bpf_object__load(object);
 }
 
-static int attach_cgroup(struct bpf_program *prog, const char *path) {
+static int attach_cgroup(struct bpf_program* prog, const char* path) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
         printf("Failed to open cgroup\n");
@@ -194,21 +200,21 @@ static int attach_cgroup(struct bpf_program *prog, const char *path) {
 /// @brief attach a specific bpf program by name and target.
 /// support auto attach for most bpf program types:
 /// tracepoint, kprobe, fentry, lsm, etc.
-int wasm_bpf_program::attach_bpf_program(const char *name,
-                                         const char *attach_target) {
-    struct bpf_link *link;
+int wasm_bpf_program::attach_bpf_program(const char* name,
+                                         const char* attach_target) {
+    struct bpf_link* link;
     if (!attach_target) {
         // auto attach
         link = bpf_program__attach(
             bpf_object__find_program_by_name(obj.get(), name));
     } else {
-        struct bpf_object *o = obj.get();
-        struct bpf_program *prog = bpf_object__find_program_by_name(o, name);
+        struct bpf_object* o = obj.get();
+        struct bpf_program* prog = bpf_object__find_program_by_name(o, name);
         if (!prog) {
             printf("get prog %s fail", name);
             return -1;
         }
-        const char *sec_name = bpf_program__section_name(prog);
+        const char* sec_name = bpf_program__section_name(prog);
         // TODO: support more attach type
         if (strcmp(sec_name, "sockops") == 0) {
             return attach_cgroup(prog, attach_target);
@@ -227,9 +233,12 @@ int wasm_bpf_program::attach_bpf_program(const char *name,
 }
 
 /// polling the buffer, if the buffer is not created, create it.
-int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env, int fd,
-                                      int32_t sample_func, uint32_t ctx,
-                                      void *data, size_t max_size,
+int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env,
+                                      int fd,
+                                      int32_t sample_func,
+                                      uint32_t ctx,
+                                      void* data,
+                                      size_t max_size,
                                       int timeout_ms) {
     if (buffer.get() == nullptr) {
         // create buffer
@@ -298,19 +307,22 @@ int bpf_map_operate(wasm_exec_env_t exec_env,
 }
 
 extern "C" {
-uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env, void *obj_buf,
+uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
+                              void* obj_buf,
                               int obj_buf_sz) {
-    if (obj_buf_sz <= 0) return 0;
+    if (obj_buf_sz <= 0)
+        return 0;
     // Ensure that the buffer passed from wasm program is valid
     if (!verify_wasm_buffer_by_native_addr(exec_env, obj_buf,
                                            (uint32_t)obj_buf_sz)) {
         return 0;
     }
-    bpf_program_manager *bpf_programs =
-        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs =
+        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
     auto program = std::make_unique<wasm_bpf_program>();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
-    if (res < 0) return 0;
+    if (res < 0)
+        return 0;
     auto key = (uint64_t)program.get();
     bpf_programs->emplace(key, std::move(program));
     return key;
@@ -324,8 +336,10 @@ int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
     return !bpf_programs->erase(program);
 }
 
-int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
-                            char *name, char *attach_target) {
+int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
+                            uint64_t program,
+                            char* name,
+                            char* attach_target) {
     bpf_program_manager* bpf_programs =
         (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
     if (bpf_programs->find(program) != bpf_programs->end()) {
@@ -339,14 +353,20 @@ int wasm_attach_bpf_program(wasm_exec_env_t exec_env, uint64_t program,
     return -EINVAL;
 }
 
-int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
-                         int32_t sample_func, uint32_t ctx, char *data,
-                         int max_size, int timeout_ms) {
-    bpf_program_manager *bpf_programs =
-        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env,
+                         uint64_t program,
+                         int fd,
+                         int32_t sample_func,
+                         uint32_t ctx,
+                         char* data,
+                         int max_size,
+                         int timeout_ms) {
+    bpf_program_manager* bpf_programs =
+        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the buffer is valid and can hold the data received
-        if (!verify_wasm_buffer_by_native_addr(exec_env, data, (uint32_t)max_size))
+        if (!verify_wasm_buffer_by_native_addr(exec_env, data,
+                                               (uint32_t)max_size))
             return -EFAULT;
         return (*bpf_programs)[program]->bpf_buffer_poll(
             exec_env, fd, sample_func, ctx, data, (size_t)max_size, timeout_ms);
@@ -354,10 +374,11 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env, uint64_t program, int fd,
     return -EINVAL;
 }
 
-int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env, uint64_t program,
-                            const char *name) {
-    bpf_program_manager *bpf_programs =
-        (bpf_program_manager *)wasm_runtime_get_user_data(exec_env);
+int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env,
+                            uint64_t program,
+                            const char* name) {
+    bpf_program_manager* bpf_programs =
+        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string is valid
         if (!verify_wasm_string_by_native_addr(exec_env, name))
@@ -375,15 +396,15 @@ int wasm_bpf_map_operate(wasm_exec_env_t exec_env,
                          void* value,
                          void* next_key,
                          uint64_t flags) {
-    return bpf_map_operate(
-        exec_env, fd, (bpf_map_cmd)cmd, key, value, next_key, flags);
+    return bpf_map_operate(exec_env, fd, (bpf_map_cmd)cmd, key, value, next_key,
+                           flags);
 }
 }
 
-int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
+int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
     char error_buf[128];
     int exit_code = 0;
-    char *wasm_path = NULL;
+    char* wasm_path = NULL;
     wasm_module_t module = NULL;
     wasm_module_inst_t module_inst = NULL;
     wasm_exec_env_t exec_env = NULL;
@@ -443,14 +464,16 @@ int wasm_main(unsigned char *buf, unsigned int size, int argc, char *argv[]) {
         return -1;
     }
     exit_code = (int)wasm_runtime_get_wasi_exit_code(module_inst);
-    if (exec_env) wasm_runtime_destroy_exec_env(exec_env);
+    if (exec_env)
+        wasm_runtime_destroy_exec_env(exec_env);
     if (module_inst) {
         if (wasm_buffer) {
             wasm_runtime_module_free(module_inst, wasm_buffer);
         }
         wasm_runtime_deinstantiate(module_inst);
     }
-    if (module) wasm_runtime_unload(module);
+    if (module)
+        wasm_runtime_unload(module);
     wasm_runtime_destroy();
     return exit_code;
 }

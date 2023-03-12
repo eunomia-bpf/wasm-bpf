@@ -11,8 +11,8 @@ static struct env {
     long min_duration_ms;
 } env;
 
-const char *argp_program_version = "bootstrap 0.0";
-const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
+const char* argp_program_version = "bootstrap 0.0";
+const char* argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
     "BPF bootstrap demo application.\n"
     "\n"
@@ -21,18 +21,14 @@ const char argp_program_doc[] =
     "\n"
     "USAGE: ./bootstrap [-d <min-duration-ms>] -v\n";
 
-static void
-print_usage(void)
-{
+static void print_usage(void) {
     printf("%s\n", argp_program_version);
     printf("%s\n", argp_program_doc);
 }
 
-static int
-handle_event(void *ctx, void *data, size_t data_sz)
-{
-    const struct event *e = data;
-    struct tm *tm;
+static int handle_event(void* ctx, void* data, size_t data_sz) {
+    const struct event* e = data;
+    struct tm* tm;
     char ts[32];
     time_t t;
 
@@ -46,8 +42,7 @@ handle_event(void *ctx, void *data, size_t data_sz)
         if (e->duration_ns)
             printf(" (%llums)", e->duration_ns / 1000000);
         printf("\n");
-    }
-    else {
+    } else {
         printf("%-8s %-5s %-16s %-7d %-7d %s\n", ts, "EXEC", e->comm, e->pid,
                e->ppid, e->filename);
     }
@@ -57,20 +52,19 @@ handle_event(void *ctx, void *data, size_t data_sz)
 
 static bool exiting = false;
 
-int
-main(int argc, char **argv)
-{
-    struct bpf_buffer *rb = NULL;
-    struct bootstrap_bpf *skel;
+int main(int argc, char** argv) {
+    struct bpf_buffer* rb = NULL;
+    struct bootstrap_bpf* skel;
     int err;
 
-	// parse the args manually for demo purpose
-    if (argc > 3 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+    // parse the args manually for demo purpose
+    if (argc > 3 || strcmp(argv[1], "-h") == 0 ||
+        strcmp(argv[1], "--help") == 0) {
         print_usage();
         return 0;
-    }
-    else if ((strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--duration") == 0)
-             && argc == 3) {
+    } else if ((strcmp(argv[1], "-d") == 0 ||
+                strcmp(argv[1], "--duration") == 0) &&
+               argc == 3) {
         env.min_duration_ms = strtol(argv[2], NULL, 10);
     }
 

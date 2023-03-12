@@ -5,8 +5,7 @@
 #include "execve.h"
 static int handle_event(void* ctx, void* data, size_t data_sz) {
     struct comm_event* st = (struct comm_event*)data;
-    printf("[%d] %s -> %s\n", st->pid, st->parent_proc,
-           st->command);
+    printf("[%d] %s -> %s\n", st->pid, st->parent_proc, st->command);
     return 0;
 }
 

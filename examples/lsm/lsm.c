@@ -7,7 +7,7 @@
 #include "lsm.skel.h"
 
 int main(void) {
-    struct lsm_bpf *skel = NULL;
+    struct lsm_bpf* skel = NULL;
     int err;
 
     skel = lsm_bpf__open_and_load();
@@ -22,7 +22,7 @@ int main(void) {
         return -1;
     }
     printf("Load and attach BPF lsm successfully\n");
-    while (1){
+    while (1) {
         sleep(10);
     }
 }
