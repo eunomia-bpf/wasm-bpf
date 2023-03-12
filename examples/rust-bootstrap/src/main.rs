@@ -75,7 +75,7 @@ struct Event {
 }
 
 /// handle ring buffer events
-extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
+extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) -> i32{
     let event_slice = unsafe { slice::from_raw_parts(data as *const Event, 1) };
     let event = &event_slice[0];
     let pid = event.pid;
@@ -112,4 +112,5 @@ extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
                 .unwrap()
         );
     }
+    return 0;
 }

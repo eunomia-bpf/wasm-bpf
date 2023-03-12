@@ -29,11 +29,7 @@ impl WrapperObject {
         &mut self.object
     }
 }
-// #[derive(Clone, Debug)]
-// pub enum PollWrapper {
-//     Disabled,
-//     Enabled { callback_function_name: String },
-// }
+
 
 pub struct AppState {
     pub wasi: WasiCtx,
@@ -41,7 +37,6 @@ pub struct AppState {
     pub object_map: HashMap<u64, WrapperObject>,
     pub opened_files: Vec<File>,
     pub opened_links: Vec<Link>,
-    // pub poll_wrapper: PollWrapper,
     pub callback_func_name: String,
     pub wrapper_called: bool,
 }
@@ -62,18 +57,6 @@ impl AppState {
             callback_func_name,
             wrapper_called: false,
         }
-    }
-    pub fn get_map_by_fd(&self, fd: i32) -> Option<&Map> {
-        let mut map = None;
-        'outer: for prog in self.object_map.values() {
-            for curr_map in prog.get_object().maps_iter() {
-                if curr_map.fd() == fd {
-                    map = Some(curr_map);
-                    break 'outer;
-                }
-            }
-        }
-        return map;
     }
     pub unsafe fn get_map_ptr_by_fd(&self, fd: i32) -> Option<*const bpf_map> {
         for prog in self.object_map.values() {
