@@ -125,7 +125,7 @@ pub fn run_wasm_bpf_module(
         .with_context(|| anyhow!("Failed to cast to func"))?
         .typed::<(), ()>(&mut store)?
         .call(&mut store, ())?;
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]
@@ -142,7 +142,7 @@ mod tests {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("tests");
         path.push(name.as_ref());
-        return path;
+        path
     }
     fn test_example(name: &str, config: Config, timeout_sec: u64) {
         let path = get_test_file_path(name);
@@ -197,7 +197,7 @@ mod tests {
             String::from("go-callback"),
             String::from("callback-wrapper"),
             Box::new(stdio::stdin()),
-            Box::new(stdout.clone()),
+            Box::new(stdout),
             Box::new(stderr),
         );
         test_example("execve.wasm", config, 3);

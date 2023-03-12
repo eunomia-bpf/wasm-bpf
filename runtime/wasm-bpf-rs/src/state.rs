@@ -70,7 +70,7 @@ impl AppState {
                 pos = bpf_object__next_map(bpf_object_ptr, pos);
             }
         }
-        return None;
+        None
     }
 }
 

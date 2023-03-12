@@ -71,5 +71,5 @@ pub fn wasm_attach_bpf_program(
         }
     };
     state.opened_links.push(link);
-    return 0;
+    0
 }

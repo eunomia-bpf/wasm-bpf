@@ -43,7 +43,7 @@ impl CallerUtils for Caller<'_, AppState> {
                 INDIRECT_TABLE_NAME
             )
         })?;
-        return Ok(table);
+        Ok(table)
     }
     fn read_wasm_string(&mut self, offset: usize) -> anyhow::Result<Vec<u8>> {
         let memory = self.get_memory()?;
@@ -64,7 +64,7 @@ impl CallerUtils for Caller<'_, AppState> {
                 buf.push(curr[0]);
             }
         }
-        return Ok(buf);
+        Ok(buf)
     }
 
     fn read_wasm_string_slice(&mut self, offset: usize) -> anyhow::Result<&[u8]> {
@@ -97,9 +97,9 @@ impl CallerUtils for Caller<'_, AppState> {
             .read_wasm_string_slice_include_zero(offset)
             .with_context(|| anyhow!("Failed to read byte slice"))?;
         let c_str = CStr::from_bytes_with_nul(data_slice).unwrap();
-        return Ok(c_str
+        return c_str
             .to_str()
-            .with_context(|| anyhow!("Failed to decode bytes into utf8 str"))?);
+            .with_context(|| anyhow!("Failed to decode bytes into utf8 str"));
     }
 
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8 {
@@ -137,7 +137,7 @@ impl FunctionQuickCall for CallerType<'_> {
             .with_context(|| anyhow!("Invalid function type provides"))?
             .call(self, params)
             .with_context(|| anyhow!("Failed to call function"))?;
-        return Ok(ret_val);
+        Ok(ret_val)
     }
 }
 

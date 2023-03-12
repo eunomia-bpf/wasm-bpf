@@ -100,9 +100,10 @@ extern "C" fn sample_function_wrapper(ctx: *mut c_void, data: *mut c_void, size:
         }
     }
 
-    return 0;
+    0
 }
-
+// I have to bypass the clippy check, since this is a ffi function.
+#[allow(clippy::too_many_arguments)]
 pub fn wasm_bpf_buffer_poll(
     mut caller: CallerType,
     program: BpfObjectType,
@@ -148,7 +149,7 @@ pub fn wasm_bpf_buffer_poll(
         debug!("Failed to poll: {}", res);
         return res;
     }
-    return 0;
+    0
 }
 
 pub enum BufferInnerType {
@@ -233,7 +234,7 @@ impl BpfBuffer {
             return -1;
         }
         self.inner = inner;
-        return 0;
+        0
     }
     pub fn bpf_buffer__poll(&self, timeout_ms: i32) -> i32 {
         match self.inner {

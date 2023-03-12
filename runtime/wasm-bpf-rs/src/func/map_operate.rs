@@ -111,7 +111,7 @@ pub fn wasm_bpf_map_operate(
             return EINVAL;
         }
     };
-    return 0;
+    0
 }
 
 #[cfg(test)]
