@@ -39,6 +39,10 @@ pub struct AppState {
     pub callback_func_name: String,
     pub wrapper_called: bool,
 }
+
+// We need a seprate thread to monitor the running process of a wasm program, so we must ensure that AppState to be Send
+#[cfg(test)]
+unsafe impl Send for AppState {}
 #[allow(unused)]
 struct MyObject {
     pub ptr: *mut libbpf_sys::bpf_object,

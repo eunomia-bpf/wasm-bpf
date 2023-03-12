@@ -8,7 +8,7 @@ use clap::Parser;
 use flexi_logger::Logger;
 use log_format::my_log_format;
 use std::fs;
-use wasm_bpf_rs::{run_wasm_bpf_module, Config};
+use wasm_bpf_rs::{Config, WasmBpfModuleRunner};
 
 mod log_format;
 
@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     args_to_wasm.insert(0, args.wasm_module_file.clone());
     let binary = fs::read(&args.wasm_module_file)
         .with_context(|| anyhow!("Failed to read wasm module file"))?;
-    run_wasm_bpf_module(
+    WasmBpfModuleRunner::new(
         &binary,
         &args_to_wasm[..],
         Config {
@@ -49,5 +49,8 @@ fn main() -> anyhow::Result<()> {
             wrapper_module_name: args.wrapper_module_name,
             ..Default::default()
         },
-    )
+    )?
+    .into_engine_and_entry_func()?
+    .1
+    .run()
 }
