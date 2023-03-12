@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: install deps
-      run: |
-          sudo apt-get install clang-format
-    - name: Run clang-format
-      run: |
-          ./.github/scripts/clang-format.sh `which clang-format`
+    - uses: DoozyX/clang-format-lint-action@v0.14
+      with:
+        source: 'examples wasm-sdk runtime/cpp/include runtime/cpp/test runtime/cpp/src'
+        extensions: 'h,cpp,c,hpp,cxx,hxx'
+        clangFormatVersion: 14
+        inplace: True

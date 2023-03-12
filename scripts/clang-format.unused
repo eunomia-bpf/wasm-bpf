@@ -1,16 +1,9 @@
-#! /usr/bin/env bash
-
-# Usage: ./clang-format.sh /usr/bin/clang-format(version >= 10.0) [-f]
+# Usage: ./clang-format.sh  [-f]
 # Specify -f to format all c/cxx files, instead of check if the files satisfy the format file
 
 lint() {
     local targets="examples wasm-sdk runtime/cpp/include runtime/cpp/test runtime/cpp/src"
-    local clang_format="${1}"
-
-    if [ "$#" -lt 1 ]; then
-        echo "please provide clang-format command. Usage ${0} `which clang-format`"
-        exit 1
-    fi
+    local clang_format="$(which clang-format)"
 
     if [ ! -f "${clang_format}" ]; then
         echo "clang-format not found. Please install clang-format first"
@@ -26,4 +19,4 @@ lint() {
     exit $?
 }
 
-lint $@
+lint "$@"
