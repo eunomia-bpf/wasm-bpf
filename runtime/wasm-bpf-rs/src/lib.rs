@@ -177,6 +177,17 @@ impl WasmBpfModuleRunner {
     }
 }
 
+/// Run a Wasm eBPF module with args
+pub fn run_wasm_bpf_module(
+    module_binary: &[u8],
+    args: &[String],
+    config: Config,
+) -> anyhow::Result<()> {
+    WasmBpfModuleRunner::new(module_binary, args, config)?
+        .into_engine_and_entry_func()?
+        .1
+        .run()
+}
 #[cfg(test)]
 mod tests {
     use wasi_common::pipe::WritePipe;
