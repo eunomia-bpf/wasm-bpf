@@ -137,11 +137,15 @@ mod tests {
     use std::io::Read;
     use std::path::PathBuf;
     use std::thread;
-
-    fn test_example(name: &str, config: Config, timeout_sec: u64) {
+    // This function is only needed when running tests, so I put it here.
+    pub fn get_test_file_path(name: impl AsRef<str>) -> PathBuf {
         let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         path.push("tests");
-        path.push(name);
+        path.push(name.as_ref());
+        return path;
+    }
+    fn test_example(name: &str, config: Config, timeout_sec: u64) {
+        let path = get_test_file_path(name);
         let mut file = File::open(path).unwrap();
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).unwrap();
