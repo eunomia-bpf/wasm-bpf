@@ -1,0 +1,19 @@
+name: "c-cpp-lint"
+
+on:
+  push:
+    branches: "main"
+  pull_request:
+    branches: "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: install deps
+      run: |
+          sudo apt-get install clang-format
+    - name: Run clang-format
+      run: |
+          ./.github/scripts/clang-format.sh `which clang-format`
