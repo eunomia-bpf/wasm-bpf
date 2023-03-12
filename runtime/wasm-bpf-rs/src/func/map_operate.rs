@@ -3,19 +3,16 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use libbpf_rs::libbpf_sys::{
-    bpf_map_delete_elem_flags, bpf_map_get_next_key, bpf_map_lookup_elem_flags,
-    bpf_map_update_elem, BPF_MAP_DELETE_ELEM, BPF_MAP_GET_NEXT_KEY, BPF_MAP_LOOKUP_ELEM,
-    BPF_MAP_UPDATE_ELEM,
-};
-use log::debug;
+use std::os::raw::c_void;
 
-use crate::{
-    ensure_enough_memory,
-    func::{EINVAL, ENOENT},
-    state::CallerType,
-    utils::CallerUtils,
+use libbpf_rs::libbpf_sys::{
+    bpf_map_delete_elem_flags, bpf_map_get_next_key, bpf_map_info, bpf_map_lookup_elem_flags,
+    bpf_map_update_elem, bpf_obj_get_info_by_fd, BPF_MAP_DELETE_ELEM, BPF_MAP_GET_NEXT_KEY,
+    BPF_MAP_LOOKUP_ELEM, BPF_MAP_UPDATE_ELEM,
 };
+use log::{debug, error};
+
+use crate::{ensure_enough_memory, func::EINVAL, state::CallerType, utils::CallerUtils};
 
 use super::WasmPointer;
 
@@ -29,17 +26,21 @@ pub fn wasm_bpf_map_operate(
     flags: u64,
 ) -> i32 {
     debug!("Map operate");
-    // let mut map = None;
-    let (key_size, value_size, fd) = {
-        let state = caller.data();
-
-        let map = if let Some(v) = state.get_map_by_fd(fd) {
-            v
-        } else {
-            debug!("No map with fd `{}` found", fd);
-            return ENOENT;
+    let (key_size, value_size) = {
+        let mut map_info = unsafe { std::mem::zeroed::<bpf_map_info>() };
+        let mut info_len: u32 = std::mem::size_of::<bpf_map_info>() as u32;
+        let ret = unsafe {
+            bpf_obj_get_info_by_fd(
+                fd,
+                &mut map_info as *mut bpf_map_info as *mut c_void,
+                &mut info_len as *mut u32,
+            )
         };
-        (map.key_size() as usize, map.value_size() as usize, map.fd())
+        if ret != 0 {
+            error!("Failed to query map info: {}", ret);
+            return ret;
+        }
+        (map_info.key_size as usize, map_info.value_size as usize)
     };
 
     match cmd as u32 {
