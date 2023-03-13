@@ -128,7 +128,7 @@ fn test_receive_wasm_bpf_module_output() {
             let vec_ref = guard.get_ref();
             if vec_ref.len() > already_read_length {
                 std::io::stdout()
-                    .write(&vec_ref[already_read_length..])
+                    .write_all(&vec_ref[already_read_length..])
                     .unwrap();
                 already_read_length = vec_ref.len();
             }
