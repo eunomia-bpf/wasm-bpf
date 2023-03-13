@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
       - name: install deps
         run: |
             sudo make install-deps
@@ -42,8 +44,6 @@ jobs:
           path: |
             Makefile
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-      - name: get submodule
-        run:  git submodule update --init --recursive
       - name: make
         run: make -C runtime/cpp
       - name: examples with cpp runtime
