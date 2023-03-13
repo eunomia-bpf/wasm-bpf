@@ -7,10 +7,12 @@ mod func;
 mod state;
 mod utils;
 
+pub mod pipe;
+
 use anyhow::{anyhow, Context};
 use state::AppState;
 use wasi_common::WasiFile;
-use wasmtime::{Engine, Linker, Module, Store};
+use wasmtime::{Engine, Linker, Module, Store, TypedFunc};
 use wasmtime_wasi::{stdio, WasiCtxBuilder};
 
 use crate::func::{
@@ -34,6 +36,8 @@ pub struct Config {
     pub stdout: Box<dyn WasiFile>,
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
+    /// Whether enable epoch interruption
+    pub enable_epoch_interruption: bool,
 }
 
 impl Default for Config {
@@ -44,6 +48,7 @@ impl Default for Config {
             stdin: Box::new(stdio::stdin()),
             stdout: Box::new(stdio::stdout()),
             stderr: Box::new(stdio::stderr()),
+            enable_epoch_interruption: false,
         }
     }
 }
@@ -66,6 +71,7 @@ impl Config {
         stdin: Box<dyn WasiFile>,
         stdout: Box<dyn WasiFile>,
         stderr: Box<dyn WasiFile>,
+        enable_epoch_interruption: bool,
     ) -> Self {
         Self {
             callback_export_name,
@@ -73,7 +79,103 @@ impl Config {
             stdin,
             stdout,
             stderr,
+            enable_epoch_interruption,
         }
+    }
+    pub fn set_epoch_interruption(self, f: bool) -> Self {
+        Self {
+            enable_epoch_interruption: f,
+            ..self
+        }
+    }
+}
+
+pub struct WasmBpfEntryFuncWrapper {
+    pub func: TypedFunc<(), ()>,
+    pub store: Store<AppState>,
+}
+
+impl WasmBpfEntryFuncWrapper {
+    pub fn run(self) -> anyhow::Result<()> {
+        self.func.call(self.store, ())
+    }
+}
+
+pub struct WasmBpfModuleRunner {
+    pub engine: Engine,
+    pub store: Store<AppState>,
+    pub linker: Linker<AppState>,
+}
+
+impl WasmBpfModuleRunner {
+    pub fn new(module_binary: &[u8], args: &[String], config: Config) -> anyhow::Result<Self> {
+        let engine_config = wasmtime::Config::new()
+            .epoch_interruption(config.enable_epoch_interruption)
+            .to_owned();
+        let engine = Engine::new(&engine_config)?;
+        let mut linker = Linker::new(&engine);
+        wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi)
+            .with_context(|| anyhow!("Failed to add wasmtime_wasi to linker"))?;
+
+        let wasi = WasiCtxBuilder::new()
+            .stdin(config.stdin)
+            .stdout(config.stdout)
+            .stderr(config.stderr)
+            .args(args)
+            .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
+            .build();
+        let mut store = Store::new(
+            &engine,
+            AppState::new(wasi, config.callback_export_name.clone()),
+        );
+
+        if config.enable_epoch_interruption {
+            // Once epoch was increased, wasm program will be trapped
+            store.set_epoch_deadline(1);
+            store.epoch_deadline_trap();
+        }
+        let main_module = Module::from_binary(&engine, module_binary)
+            .with_context(|| anyhow!("Failed to read wasm module file"))?;
+        add_bind_function!(linker, wasm_load_bpf_object)?;
+        add_bind_function!(linker, wasm_close_bpf_object)?;
+        add_bind_function!(linker, wasm_attach_bpf_program)?;
+        add_bind_function!(linker, wasm_bpf_buffer_poll)?;
+        add_bind_function!(linker, wasm_bpf_map_fd_by_name)?;
+        add_bind_function!(linker, wasm_bpf_map_operate)?;
+
+        add_bind_function_with_module_and_name!(
+            linker,
+            &config.wrapper_module_name,
+            wrapper_poll::bpf_buffer_poll_wrapper,
+            POLL_WRAPPER_FUNCTION_NAME
+        )?;
+        linker
+            .module(&mut store, MAIN_MODULE_NAME, &main_module)
+            .with_context(|| anyhow!("Failed to link main module"))?;
+        Ok(Self {
+            engine,
+            store,
+            linker,
+        })
+    }
+    // With this we can splite engine and function into two seperate part, and allowing functions to be passed to another thread
+    pub fn into_engine_and_entry_func(
+        mut self,
+    ) -> anyhow::Result<(Engine, WasmBpfEntryFuncWrapper)> {
+        let func = self
+            .linker
+            .get(&mut self.store, MAIN_MODULE_NAME, "_start")
+            .with_context(|| anyhow!("Failed to get _start function"))?
+            .into_func()
+            .with_context(|| anyhow!("Failed to cast to func"))?
+            .typed::<(), ()>(&mut self.store)?;
+        Ok((
+            self.engine,
+            WasmBpfEntryFuncWrapper {
+                func,
+                store: self.store,
+            },
+        ))
     }
 }
 
@@ -83,124 +185,10 @@ pub fn run_wasm_bpf_module(
     args: &[String],
     config: Config,
 ) -> anyhow::Result<()> {
-    let engine = Engine::default();
-    let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi)
-        .with_context(|| anyhow!("Failed to add wasmtime_wasi to linker"))?;
-
-    let wasi = WasiCtxBuilder::new()
-        .stdin(config.stdin)
-        .stdout(config.stdout)
-        .stderr(config.stderr)
-        .args(args)
-        .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
-        .build();
-    let mut store = Store::new(
-        &engine,
-        AppState::new(wasi, config.callback_export_name.clone()),
-    );
-    let main_module = Module::from_binary(&engine, module_binary)
-        .with_context(|| anyhow!("Failed to read wasm module file"))?;
-    add_bind_function!(linker, wasm_load_bpf_object)?;
-    add_bind_function!(linker, wasm_close_bpf_object)?;
-    add_bind_function!(linker, wasm_attach_bpf_program)?;
-    add_bind_function!(linker, wasm_bpf_buffer_poll)?;
-    add_bind_function!(linker, wasm_bpf_map_fd_by_name)?;
-    add_bind_function!(linker, wasm_bpf_map_operate)?;
-
-    add_bind_function_with_module_and_name!(
-        linker,
-        &config.wrapper_module_name,
-        wrapper_poll::bpf_buffer_poll_wrapper,
-        POLL_WRAPPER_FUNCTION_NAME
-    )?;
-    linker
-        .module(&mut store, MAIN_MODULE_NAME, &main_module)
-        .with_context(|| anyhow!("Failed to link main module"))?;
-
-    linker
-        .get(&mut store, MAIN_MODULE_NAME, "_start")
-        .with_context(|| anyhow!("Failed to get _start function"))?
-        .into_func()
-        .with_context(|| anyhow!("Failed to cast to func"))?
-        .typed::<(), ()>(&mut store)?
-        .call(&mut store, ())?;
-    Ok(())
+    WasmBpfModuleRunner::new(module_binary, args, config)?
+        .into_engine_and_entry_func()?
+        .1
+        .run()
 }
-
 #[cfg(test)]
-mod tests {
-    use wasi_common::pipe::WritePipe;
-
-    use super::*;
-    use std::fs::File;
-    use std::io::Read;
-    use std::path::PathBuf;
-    use std::thread;
-    // This function is only needed when running tests, so I put it here.
-    pub fn get_test_file_path(name: impl AsRef<str>) -> PathBuf {
-        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("tests");
-        path.push(name.as_ref());
-        path
-    }
-    fn test_example(name: &str, config: Config, timeout_sec: u64) {
-        let path = get_test_file_path(name);
-        let mut file = File::open(path).unwrap();
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).unwrap();
-        let args = vec!["test".to_string()];
-        // Run the Wasm module for 3 seconds in another thread
-        thread::spawn(move || {
-            let result = run_wasm_bpf_module(&buffer, &args, config);
-            assert!(result.is_ok());
-        });
-        thread::sleep(std::time::Duration::from_secs(timeout_sec));
-        // kill the thread
-    }
-
-    #[test]
-    fn test_run_tracing_wasm_bpf_module() {
-        test_example("execve.wasm", Config::default(), 3);
-        test_example("bootstrap.wasm", Config::default(), 3);
-        test_example("opensnoop.wasm", Config::default(), 3);
-        test_example("lsm.wasm", Config::default(), 3);
-        test_example("rust-bootstrap.wasm", Config::default(), 3);
-    }
-
-    #[test]
-    fn test_run_network_wasm_bpf_module() {
-        test_example("sockfilter.wasm", Config::default(), 3);
-        test_example("sockops.wasm", Config::default(), 3);
-    }
-
-    #[test]
-    fn test_run_wasm_bpf_module_maps() {
-        test_example("runqlat.wasm", Config::default(), 3);
-    }
-
-    #[test]
-    fn test_run_wasm_bpf_module_with_callback() {
-        let mut config = Config::default();
-        config.set_callback_values(
-            String::from("go-callback"),
-            String::from("callback-wrapper"),
-        );
-        test_example("go-execve.wasm", config, 3);
-    }
-
-    #[test]
-    fn test_receive_wasm_bpf_module_output() {
-        let stdout = WritePipe::new_in_memory();
-        let stderr = WritePipe::new_in_memory();
-        let config = Config::new(
-            String::from("go-callback"),
-            String::from("callback-wrapper"),
-            Box::new(stdio::stdin()),
-            Box::new(stdout),
-            Box::new(stderr),
-        );
-        test_example("execve.wasm", config, 3);
-        // read from the WritePipe
-    }
-}
+mod tests;
