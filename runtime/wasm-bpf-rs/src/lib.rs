@@ -7,6 +7,8 @@ mod func;
 mod state;
 mod utils;
 
+pub mod pipe;
+
 use anyhow::{anyhow, Context};
 use state::AppState;
 use wasi_common::WasiFile;
