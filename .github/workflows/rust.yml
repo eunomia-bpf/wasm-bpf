@@ -11,41 +11,44 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
     - name: install deps
       run: |
           sudo make install-deps
           make /opt/wasi-sdk
           make tinygo
-    - name: Cache
-      uses: actions/cache@v3.3.0
 
+    - name: Cache rust
+      uses: Swatinem/rust-cache@v2
       with:
-        path: |
-          Makefile
-        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
-    - name: get submodule
-      run:  git submodule update --init --recursive
+        workspaces: |
+          runtime/wasm-bpf-rs
+          runtime/cmd
+
     - name: Build
       run: make build-rust
     - name: test wasm-bpf-rs
       run:  cd runtime/wasm-bpf-rs && make test
     - name: Upload analysis results to GitHub
       uses: github/codeql-action/upload-sarif@v2
-      if: ${{ github.repository_owner == 'eunomia-bpf' }}
+      if: github.repository_owner == 'eunomia-bpf'
       with:
         sarif_file: runtime/wasm-bpf-rs/rust-clippy-results.sarif
         wait-for-processing: true
 
     - name: Code coverage using Codecov
+      if: github.repository_owner == 'eunomia-bpf'
       run: bash <(curl -s https://codecov.io/bash)
     - name: examples with rust runtime
       run: IMPL=rust make -C examples
     - name: Upload build result
       uses: actions/upload-artifact@v2.3.1
+      if: github.repository_owner == 'eunomia-bpf'
       with:
         path: "wasm-bpf-rs"

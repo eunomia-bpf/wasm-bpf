@@ -14,9 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: get submodule
-        run:  git submodule update --init --recursive --remote
+        with:
+          submodules: 'recursive'
 
       # setup Docker buld action
       - name: Set up Docker Buildx
@@ -25,19 +24,27 @@ jobs:
 
       - name: Login to Github Packages
         uses: docker/login-action@v2
-        if: ${{ github.repository_owner == 'eunomia-bpf' }}
+        if: github.repository_owner == 'eunomia-bpf'
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         run: sudo make install-deps
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            runtime/wasm-bpf-rs
+            runtime/cmd
+
       - name: Build runtime
         run: make build-rust
 
       - name: Build wasm-bpf image and push to GitHub Container Registry
         uses: docker/build-push-action@v2
-        if: ${{ github.repository_owner == 'eunomia-bpf' }}
+        if: github.repository_owner == 'eunomia-bpf'
         with:
           # relative path to the place where source code with Dockerfile is located
           context: ./
