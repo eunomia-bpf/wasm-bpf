@@ -35,9 +35,7 @@ jobs:
       - name: Cache rust
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            runtime/wasm-bpf-rs
-            runtime/cmd
+          workspaces: runtime
 
       - name: Build runtime
         run: make build-rust
