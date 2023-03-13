@@ -1,4 +1,3 @@
-
 use crate::pipe::ReadableWritePipe;
 
 use super::*;
@@ -7,7 +6,6 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
-
 
 // This function is only needed when running tests, so I put it here.
 pub fn get_test_file_path(name: impl AsRef<str>) -> PathBuf {
