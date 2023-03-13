@@ -39,7 +39,6 @@ pub struct AppState {
     pub callback_func_name: String,
     pub wrapper_called: bool,
 }
-
 #[allow(unused)]
 struct MyObject {
     pub ptr: *mut libbpf_sys::bpf_object,
