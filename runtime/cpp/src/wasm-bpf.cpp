@@ -240,17 +240,23 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env,
                                       void* data,
                                       size_t max_size,
                                       int timeout_ms) {
+    int res;
     if (buffer.get() == nullptr) {
         // create buffer
         auto map = this->map_ptr_by_fd(fd);
         buffer = bpf_buffer__new(map);
-        buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
-        return 0;
+        if (!buffer) {
+            return -1;
+        }
+        res = buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
+        if (res < 0) {
+            return res;
+        }
     }
     buffer->set_callback_params(exec_env, (uint32_t)sample_func, data, max_size,
                                 ctx);
     // poll the buffer
-    int res = buffer->bpf_buffer__poll(timeout_ms);
+    res = buffer->bpf_buffer__poll(timeout_ms);
     if (res < 0) {
         return res;
     }
