@@ -105,7 +105,7 @@ fn test_receive_wasm_bpf_module_output() {
                 already_read_length = vec_ref.len();
             }
         }
-        // Wait 0.1s, then continue to poll
+        // Wait 3s, then continue to poll
         thread::sleep(Duration::from_millis(3000));
     }
 
