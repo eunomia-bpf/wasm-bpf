@@ -35,7 +35,9 @@ fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
     } else if let WaitPolicy::WaitUntilTimedOut(timeout_sec) = wait_policy {
         let (wasm_handle, join_handle) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
         thread::sleep(Duration::from_secs(timeout_sec));
-        wasm_handle.terminate().unwrap();
+        // What if the wasm programs ends before the timeout_sec? If that happened, terminate will be failing.
+        // So there shouldn't be `unwrap`
+        wasm_handle.terminate().ok();
 
         if let Err(e) = join_handle.join().unwrap() {
             // We can't distinguish epoch trap and other errors easily...
