@@ -40,6 +40,7 @@ impl WasmProgramHandle {
         Ok(())
     }
     pub fn terminate(&self) -> anyhow::Result<()> {
+        self.engine.increment_epoch();
         self.operation_tx
             .send(ProgramOperation::Terminate)
             .with_context(|| anyhow!("Failed to send terminate operation"))?;
