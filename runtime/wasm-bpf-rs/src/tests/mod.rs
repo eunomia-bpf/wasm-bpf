@@ -1,3 +1,4 @@
+use crate::handle::WasmProgramHandle;
 use crate::pipe::ReadableWritePipe;
 
 use super::*;
@@ -16,55 +17,27 @@ pub fn get_test_file_path(name: impl AsRef<str>) -> PathBuf {
 }
 
 enum WaitPolicy<'a> {
-    NoWait(&'a mut Option<Engine>),
+    NoWait(&'a mut Option<WasmProgramHandle>),
     WaitUntilTimedOut(u64),
 }
 
 fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
     // Enable epoch interruption, so the wasm program can terminate after timeout_sec seconds.
-    let config = config.set_epoch_interruption(true);
 
     let path = get_test_file_path(name);
     let mut file = File::open(path).unwrap();
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).unwrap();
     let args = vec!["test".to_string()];
-    if let WaitPolicy::NoWait(engine_out) = wait_policy {
-        // If we don't want to wait, then just open a new thread to run the wasm program
-        // and return the engine, which can be used to increase epoch
-        // So that the user can terminate the wasm program manually
-        let (tx, rx) = std::sync::mpsc::channel::<Engine>();
-        thread::spawn(move || {
-            let (engine, func) = WasmBpfModuleRunner::new(&buffer, &args, config)
-                .unwrap()
-                .into_engine_and_entry_func()
-                .unwrap();
-            tx.send(engine).unwrap();
-            let result = func.run();
-            if let Err(e) = result {
-                // We can't distinguish epoch trap and other errors easily...
-                println!("{}", e.to_string());
-            }
-        });
-
-        *engine_out = Some(rx.recv().unwrap());
+    if let WaitPolicy::NoWait(handle_out) = wait_policy {
+        let (wasm_handle, _) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
+        *handle_out = Some(wasm_handle);
     } else if let WaitPolicy::WaitUntilTimedOut(timeout_sec) = wait_policy {
-        // If we are going to wait for `timeout_sec` and terminate the wasm program
-        // Then we just spawn a new thread to sleep and increase epoch
-        // The original thread is used to run the wasm program
-        let (engine, func) = WasmBpfModuleRunner::new(&buffer, &args, config)
-            .unwrap()
-            .into_engine_and_entry_func()
-            .unwrap();
-        // Run the Wasm module for 3 seconds in another thread
-        thread::spawn(move || {
-            thread::sleep(std::time::Duration::from_secs(timeout_sec));
-            // kill the thread
-            // There will be an epoch interruption in the wasm program.
-            engine.increment_epoch();
-        });
-        let result = func.run();
-        if let Err(e) = result {
+        let (wasm_handle, join_handle) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
+        thread::sleep(Duration::from_secs(timeout_sec));
+        wasm_handle.terminate().unwrap();
+
+        if let Err(e) = join_handle.join().unwrap() {
             // We can't distinguish epoch trap and other errors easily...
             println!("{}", e.to_string());
         }
@@ -113,14 +86,13 @@ fn test_receive_wasm_bpf_module_output() {
         Box::new(stdio::stdin()),
         Box::new(stdout.clone()),
         Box::new(stderr.clone()),
-        true,
     );
-    let mut engine = None;
-    test_example_and_wait("execve.wasm", config, WaitPolicy::NoWait(&mut engine));
+    let mut handle = None;
+    test_example_and_wait("execve.wasm", config, WaitPolicy::NoWait(&mut handle));
     let mut already_read_length = 0;
     // Wait for 5s to wait the program warmup
     thread::sleep(Duration::from_secs(5));
-    for _ in 0..30 {
+    for _ in 0..3 {
         {
             let guard = stdout.get_read_lock();
             let vec_ref = guard.get_ref();
@@ -132,9 +104,50 @@ fn test_receive_wasm_bpf_module_output() {
             }
         }
         // Wait 0.1s, then continue to poll
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(3000));
     }
 
     // Terminate the wasm program
-    engine.unwrap().increment_epoch();
+    handle.unwrap().terminate().unwrap();
+}
+
+#[test]
+fn test_pause_and_resume_wasm_program() {
+    let stdout = ReadableWritePipe::new_vec_buf();
+    let stderr = ReadableWritePipe::new_vec_buf();
+    let config = Config::new(
+        String::from("go-callback"),
+        String::from("callback-wrapper"),
+        Box::new(stdio::stdin()),
+        Box::new(stdout.clone()),
+        Box::new(stderr.clone()),
+    );
+    // Count how many ticks do we have now
+    let count_tick = || {
+        stdout
+            .borrow()
+            .get_ref()
+            .iter()
+            .filter(|v| **v == b'\n')
+            .count() as i64
+    };
+    let mut handle = None;
+    test_example_and_wait("tick.wasm", config, WaitPolicy::NoWait(&mut handle));
+    // Wait for the program to warmup
+    thread::sleep(Duration::from_secs(3));
+    let tick_count_1 = count_tick();
+    println!("Tick count 1: {}", tick_count_1);
+    handle.as_mut().unwrap().pause().unwrap();
+    thread::sleep(Duration::from_secs(3));
+    handle.as_mut().unwrap().resume().unwrap();
+    let tick_count_2 = count_tick();
+    println!("Tick count 2: {}", tick_count_2);
+    // Tick count should not differ than 1.
+    // Why not equal?
+    // if the program was paused at 3.9999999s. And the resume function will take 0.0001s, we may got another tick.
+    assert!((tick_count_1 - tick_count_2).abs() < 1);
+    thread::sleep(Duration::from_secs(3));
+    let tick_count_3 = count_tick();
+    println!("Tick count 3: {}", tick_count_3);
+    assert!(tick_count_3 - tick_count_2 >= 2);
 }
