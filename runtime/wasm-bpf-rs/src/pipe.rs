@@ -1,12 +1,12 @@
 use std::{
     any::Any,
-    io::{Cursor, Write},
+    io::{self, Cursor, Write},
     sync::{Arc, RwLock},
 };
 
 use wasi_common::{
     file::{FdFlags, FileType},
-    WasiFile,
+    Error, ErrorExt, WasiFile,
 };
 
 pub struct ReadableWritePipe<W: Write> {
@@ -17,18 +17,31 @@ impl<W: Write + Any + Send + Sync> WasiFile for ReadableWritePipe<W> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    async fn get_filetype(&mut self) -> Result<FileType, wasi_common::Error> {
+    async fn get_filetype(&mut self) -> Result<FileType, Error> {
         Ok(FileType::Pipe)
     }
-    async fn get_fdflags(&mut self) -> Result<FdFlags, wasi_common::Error> {
+    async fn get_fdflags(&mut self) -> Result<FdFlags, Error> {
         Ok(FdFlags::APPEND)
     }
-    async fn write_vectored<'a>(
-        &mut self,
-        bufs: &[std::io::IoSlice<'a>],
-    ) -> Result<u64, wasi_common::Error> {
+    async fn write_vectored<'a>(&mut self, bufs: &[std::io::IoSlice<'a>]) -> Result<u64, Error> {
         let n = self.borrow().write_vectored(bufs)?;
         Ok(n.try_into()?)
+    }
+    async fn writable(&self) -> Result<(), Error> {
+        Ok(())
+    }
+    async fn write_vectored_at<'a>(
+        &mut self,
+        _bufs: &[io::IoSlice<'a>],
+        _offset: u64,
+    ) -> Result<u64, Error> {
+        Err(Error::seek_pipe())
+    }
+    async fn seek(&mut self, _pos: std::io::SeekFrom) -> Result<u64, Error> {
+        Err(Error::seek_pipe())
+    }
+    fn isatty(&mut self) -> bool {
+        false
     }
 }
 impl<W: Write> ReadableWritePipe<W> {

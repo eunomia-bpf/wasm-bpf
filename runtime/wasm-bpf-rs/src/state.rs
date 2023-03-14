@@ -3,7 +3,7 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use std::{collections::HashMap, fs::File, ptr::null};
+use std::{collections::HashMap, fs::File, ptr::null, sync::mpsc};
 
 use libbpf_rs::{
     libbpf_sys::{self, bpf_map, bpf_map__fd, bpf_object__next_map},
@@ -12,7 +12,7 @@ use libbpf_rs::{
 use wasmtime::Caller;
 use wasmtime_wasi::WasiCtx;
 
-use crate::func::poll::BpfBuffer;
+use crate::{func::poll::BpfBuffer, handle::ProgramOperation};
 
 const FIRST_OBJECT_ID: u64 = 1;
 
@@ -38,6 +38,7 @@ pub struct AppState {
     pub opened_links: Vec<Link>,
     pub callback_func_name: String,
     pub wrapper_called: bool,
+    pub operation_rx: mpsc::Receiver<ProgramOperation>,
 }
 #[allow(unused)]
 struct MyObject {
@@ -46,7 +47,11 @@ struct MyObject {
     _progs: HashMap<String, Program>,
 }
 impl AppState {
-    pub fn new(wasi: WasiCtx, callback_func_name: String) -> Self {
+    pub fn new(
+        wasi: WasiCtx,
+        callback_func_name: String,
+        operation_rx: mpsc::Receiver<ProgramOperation>,
+    ) -> Self {
         Self {
             wasi,
             next_object_id: FIRST_OBJECT_ID,
@@ -55,6 +60,7 @@ impl AppState {
             opened_links: vec![],
             callback_func_name,
             wrapper_called: false,
+            operation_rx,
         }
     }
     pub unsafe fn get_map_ptr_by_fd(&self, fd: i32) -> Option<*const bpf_map> {
