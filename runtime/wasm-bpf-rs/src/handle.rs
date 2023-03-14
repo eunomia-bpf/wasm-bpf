@@ -37,6 +37,7 @@ impl WasmProgramHandle {
         self.operation_tx
             .send(ProgramOperation::Resume)
             .with_context(|| anyhow!("Failed to send resume operation"))?;
+        self.paused = false;
         Ok(())
     }
     pub fn terminate(&self) -> anyhow::Result<()> {
