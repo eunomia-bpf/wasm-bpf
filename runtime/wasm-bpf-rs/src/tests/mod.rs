@@ -152,4 +152,5 @@ fn test_pause_and_resume_wasm_program() {
     let tick_count_3 = count_tick();
     println!("Tick count 3: {}", tick_count_3);
     assert!(tick_count_3 - tick_count_2 >= 2);
+    handle.as_mut().unwrap().terminate().unwrap();
 }
