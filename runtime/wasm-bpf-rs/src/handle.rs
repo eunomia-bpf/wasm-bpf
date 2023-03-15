@@ -3,11 +3,15 @@ use std::sync::mpsc;
 use anyhow::{anyhow, bail, Context};
 use wasmtime::Engine;
 
+/// This is the signal that will be sended to the hanging epoch interruption callback function
 pub enum ProgramOperation {
+    /// Resume the program
     Resume,
+    /// Terminate the program
     Terminate,
 }
 
+/// This is a handle to the wasm program
 pub struct WasmProgramHandle {
     operation_tx: mpsc::Sender<ProgramOperation>,
     paused: bool,
@@ -22,6 +26,8 @@ impl WasmProgramHandle {
             paused: false,
         }
     }
+    /// Pause the wasm program
+    /// Error will be returned when the program was already paused
     pub fn pause(&mut self) -> anyhow::Result<()> {
         if self.paused {
             bail!("Already paused!");
@@ -30,6 +36,8 @@ impl WasmProgramHandle {
         self.paused = true;
         Ok(())
     }
+    /// Resume the wasm program
+    /// Error will be returned when the program was already running, or when the program as terminated
     pub fn resume(&mut self) -> anyhow::Result<()> {
         if !self.paused {
             bail!("Already running!");
@@ -40,6 +48,8 @@ impl WasmProgramHandle {
         self.paused = false;
         Ok(())
     }
+    /// Terminate the wasm program
+    /// Error will be returned when the program was already terminated
     pub fn terminate(&self) -> anyhow::Result<()> {
         self.engine.increment_epoch();
         self.operation_tx

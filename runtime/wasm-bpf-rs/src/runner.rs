@@ -18,26 +18,31 @@ use crate::{
     state::AppState,
     Config, MAIN_MODULE_NAME, POLL_WRAPPER_FUNCTION_NAME,
 };
-
+/// This is a wrapper around the entry func of the wasi program, and the store it will use
 pub struct WasmBpfEntryFuncWrapper {
-    pub func: TypedFunc<(), ()>,
-    pub store: Store<AppState>,
+    pub(crate) func: TypedFunc<(), ()>,
+    pub(crate) store: Store<AppState>,
 }
 
 impl WasmBpfEntryFuncWrapper {
+    /// Run the wasm program from the entry function
     pub fn run(self) -> anyhow::Result<()> {
         self.func.call(self.store, ())
     }
 }
-
+/// This struct provides ability to parse and link the input wasm module
 pub struct WasmBpfModuleRunner {
+    /// The engine which will be used to run the wasm bpf program
     pub engine: Engine,
+    /// The store which will be used
     pub store: Store<AppState>,
+    /// The linker which will be used
     pub linker: Linker<AppState>,
     operation_tx: mpsc::Sender<ProgramOperation>,
 }
 
 impl WasmBpfModuleRunner {
+    /// Create a runner.
     pub fn new(module_binary: &[u8], args: &[String], config: Config) -> anyhow::Result<Self> {
         let engine_config = wasmtime::Config::new()
             .epoch_interruption(true) // It must be enabled
