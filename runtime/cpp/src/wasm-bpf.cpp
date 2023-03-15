@@ -114,7 +114,7 @@ int bpf_buffer::bpf_buffer_sample(void* data, size_t size) {
     // call the wasm callback handler
     if (!wasm_runtime_call_indirect(callback_exec_env, wasm_sample_function, 3,
                                     argv)) {
-        printf("call func1 failed\n");
+        printf("indirect call sample_function failed\n");
         return -EINVAL;
     }
     return 0;
@@ -258,11 +258,7 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env,
     buffer->set_callback_params(exec_env, (uint32_t)sample_func, data, max_size,
                                 ctx);
     // poll the buffer
-    res = buffer->bpf_buffer__poll(timeout_ms);
-    if (res < 0) {
-        return res;
-    }
-    return 0;
+    return buffer->bpf_buffer__poll(timeout_ms);
 }
 
 /// a wrapper function to call the bpf syscall
@@ -311,7 +307,6 @@ int bpf_map_operate(wasm_exec_env_t exec_env,
         default:  // More syscall commands can be allowed here
             return -EINVAL;
     }
-    return -EINVAL;
 }
 
 extern "C" {
