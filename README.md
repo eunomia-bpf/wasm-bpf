@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/eunomia-bpf/wasm-bpf/branch/main/graph/badge.svg?token=6TKN4WU99U)](https://codecov.io/gh/eunomia-bpf/wasm-bpf)
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf)
 [![DeepSource](https://deepsource.io/gh/eunomia-bpf/wasm-bpf.svg/?label=active+issues&show_trend=true&token=rcSI3J1-gpwLIgZWtKZC-N6C)](https://deepsource.io/gh/eunomia-bpf/wasm-bpf/?ref=repository-badge)
+[![](https://img.shields.io/crates/v/wasm-bpf-rs.svg)](https://crates.io/crates/wasm-bpf-rs)
 
 [中文文档](README_zh.md) [Gitee](https://gitee.com/eunomia-bpf/wasm-bpf) [Github](https://github.com/eunomia-bpf/wasm-bpf)
 
