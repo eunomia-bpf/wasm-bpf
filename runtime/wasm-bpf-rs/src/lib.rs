@@ -34,7 +34,6 @@ pub struct Config {
     pub stdout: Box<dyn WasiFile>,
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
-    // Now we force epoch interruption to be enabled
 }
 
 impl Default for Config {
