@@ -114,8 +114,8 @@ int bpf_buffer::bpf_buffer_sample(void* data, size_t size) {
     // call the wasm callback handler
     if (!wasm_runtime_call_indirect(callback_exec_env, wasm_sample_function, 3,
                                     argv)) {
-        printf("call func1 failed\n");
-        return 0xDEAD;
+        printf("indirect call sample_function failed\n");
+        return -EINVAL;
     }
     return 0;
 }
@@ -148,13 +148,15 @@ static int bpf_buffer_sample(void* ctx, void* data, size_t size) {
 
 /// @brief create a bpf buffer based on the object map type
 std::unique_ptr<bpf_buffer> bpf_buffer__new(struct bpf_map* events) {
-    bool use_ringbuf = bpf_map__type(events) == BPF_MAP_TYPE_RINGBUF;
-    if (use_ringbuf) {
-        return std::make_unique<ring_buffer_wrapper>(events);
-    } else {
-        return std::make_unique<perf_buffer_wrapper>(events);
+    bpf_map_type map_type = bpf_map__type(events);
+    switch (map_type) {
+        case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
+            return std::make_unique<perf_buffer_wrapper>(events);
+        case BPF_MAP_TYPE_RINGBUF:
+            return std::make_unique<ring_buffer_wrapper>(events);
+        default:
+            return nullptr;
     }
-    return nullptr;
 }
 
 /// Get the file descriptor of a map by name.
@@ -240,21 +242,23 @@ int wasm_bpf_program::bpf_buffer_poll(wasm_exec_env_t exec_env,
                                       void* data,
                                       size_t max_size,
                                       int timeout_ms) {
+    int res;
     if (buffer.get() == nullptr) {
         // create buffer
         auto map = this->map_ptr_by_fd(fd);
         buffer = bpf_buffer__new(map);
-        buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
-        return 0;
+        if (!buffer) {
+            return -ENOMEM;
+        }
+        res = buffer->bpf_buffer__open(fd, bpf_buffer_sample, buffer.get());
+        if (res < 0) {
+            return res;
+        }
     }
     buffer->set_callback_params(exec_env, (uint32_t)sample_func, data, max_size,
                                 ctx);
     // poll the buffer
-    int res = buffer->bpf_buffer__poll(timeout_ms);
-    if (res < 0) {
-        return res;
-    }
-    return 0;
+    return buffer->bpf_buffer__poll(timeout_ms);
 }
 
 /// a wrapper function to call the bpf syscall
@@ -303,7 +307,6 @@ int bpf_map_operate(wasm_exec_env_t exec_env,
         default:  // More syscall commands can be allowed here
             return -EINVAL;
     }
-    return -EINVAL;
 }
 
 extern "C" {
@@ -333,7 +336,7 @@ int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
         (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
     if (!bpf_programs->count(program))
         return 0;
-    return !bpf_programs->erase(program);
+    return bpf_programs->erase(program) > 0 ? 0 : -1;
 }
 
 int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
