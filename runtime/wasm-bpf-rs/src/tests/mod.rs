@@ -1,5 +1,6 @@
 use crate::handle::WasmProgramHandle;
 use crate::pipe::ReadableWritePipe;
+use crate::state::CallerType;
 
 use super::*;
 use std::fs::File;
@@ -153,4 +154,21 @@ fn test_pause_and_resume_wasm_program() {
     println!("Tick count 3: {}", tick_count_3);
     assert!(tick_count_3 - tick_count_2 >= 2);
     handle.as_mut().unwrap().terminate().unwrap();
+}
+
+#[test]
+fn test_custom_host_function() {
+    let module_binary = std::fs::read(get_test_file_path("custom_host_func.wasm")).unwrap();
+    let args = vec!["test".to_string()];
+    let mut runner =
+        WasmBpfModuleRunner::new(&module_binary[..], &args[..], Config::default()).unwrap();
+    runner
+        .register_host_function("host_func_test", "plus_i32", host_func_plus_i32)
+        .unwrap();
+    let (_, wrapper) = runner.into_engine_and_entry_func().unwrap();
+    wrapper.run().unwrap();
+}
+
+fn host_func_plus_i32(_caller: CallerType, a: i32, b: i32) -> i32 {
+    a + b
 }

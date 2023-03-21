@@ -1,7 +1,7 @@
 use std::sync::mpsc;
 
 use anyhow::{anyhow, Context};
-use wasmtime::{Engine, Linker, Module, Store, TypedFunc};
+use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
 use wasmtime_wasi::WasiCtxBuilder;
 
 use crate::add_bind_function_with_module;
@@ -39,6 +39,7 @@ pub struct WasmBpfModuleRunner {
     /// The linker which will be used
     pub linker: Linker<AppState>,
     operation_tx: mpsc::Sender<ProgramOperation>,
+    main_module: Module,
 }
 
 impl WasmBpfModuleRunner {
@@ -88,14 +89,12 @@ impl WasmBpfModuleRunner {
             wrapper_poll::bpf_buffer_poll_wrapper,
             POLL_WRAPPER_FUNCTION_NAME
         )?;
-        linker
-            .module(&mut store, MAIN_MODULE_NAME, &main_module)
-            .with_context(|| anyhow!("Failed to link main module"))?;
         Ok(Self {
             engine,
             store,
             linker,
             operation_tx: tx,
+            main_module,
         })
     }
     /// Consume this runner, return a handle to the wasm program, which can control the pause/resume/terminate of the program
@@ -104,6 +103,10 @@ impl WasmBpfModuleRunner {
     pub fn into_engine_and_entry_func(
         mut self,
     ) -> anyhow::Result<(WasmProgramHandle, WasmBpfEntryFuncWrapper)> {
+        self.linker
+            .module(&mut self.store, MAIN_MODULE_NAME, &self.main_module)
+            .with_context(|| anyhow!("Failed to link main module"))?;
+
         let func = self
             .linker
             .get(&mut self.store, MAIN_MODULE_NAME, "_start")
@@ -118,5 +121,14 @@ impl WasmBpfModuleRunner {
                 store: self.store,
             },
         ))
+    }
+    /// Register a custom host function. It has the similar signature as `wasmtime::linker::Linker::func_wrap`
+    pub fn register_host_function<Params, Args>(
+        &mut self,
+        module: &str,
+        name: &str,
+        func: impl IntoFunc<AppState, Params, Args>,
+    ) -> anyhow::Result<()> {
+        self.linker.func_wrap(module, name, func).map(|_| ())
     }
 }
