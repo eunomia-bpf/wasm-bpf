@@ -82,7 +82,7 @@ impl WasmBpfModuleRunner {
         add_bind_function!(linker, wasm_bpf_buffer_poll)?;
         add_bind_function!(linker, wasm_bpf_map_fd_by_name)?;
         add_bind_function!(linker, wasm_bpf_map_operate)?;
-        
+
         add_bind_function_with_module_and_name!(
             linker,
             &config.wrapper_module_name,
