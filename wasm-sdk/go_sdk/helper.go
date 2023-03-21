@@ -1,8 +1,5 @@
-//go:build js,wasm
-// +build js,wasm
-
 // export
-package helper
+package go_sdk
 
 //go:wasm-module wasm_bpf
 //export wasm_bpf_map_operate
