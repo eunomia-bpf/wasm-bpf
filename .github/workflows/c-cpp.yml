@@ -19,6 +19,12 @@ jobs:
           sudo make install-deps
           make /opt/wasi-sdk
           make tinygo
+    - name: Cache
+      uses: actions/cache@v3.3.0
+      with:
+        path: |
+          Makefile
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: make
       run: make -C runtime/cpp
     - name: make build-lib
