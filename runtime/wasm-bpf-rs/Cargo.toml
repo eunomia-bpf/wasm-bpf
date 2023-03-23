@@ -1,6 +1,6 @@
 [package]
 name = "wasm-bpf-rs"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license = "MIT"
 description = "A WebAssembly runtime library for eBPF programs based on libbpf and wasmtime"
@@ -11,7 +11,7 @@ repository = "https://github.com/eunomia-bpf/wasm-bpf"
 [dependencies]
 anyhow = "1.0.69"
 flexi_logger = "0.25.1"
-libbpf-rs = "0.19.1"
+libbpf-rs = "0.20.0"
 log = "0.4.17"
 wasmtime = "5.0.1"
 wasmtime-wasi = "5.0.0"

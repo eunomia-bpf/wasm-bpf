@@ -1,7 +1,7 @@
 build: build-rust build-cpp
 
 build-rust:
-	$(MAKE) -C runtime/cmd build
+	$(MAKE) -C runtime/cli build
 	cp ./runtime/target/release/wasm-bpf ./wasm-bpf-rs
 
 build-cpp:
@@ -11,7 +11,7 @@ build-cpp:
 clean:
 	$(MAKE) -C examples clean
 	$(MAKE) -C runtime/cpp clean
-	$(MAKE) -C runtime/cmd clean
+	$(MAKE) -C runtime/cli clean
 	rm -rf wasm-bpf-rs
 	rm -rf wasm-bpf
 

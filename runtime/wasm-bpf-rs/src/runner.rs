@@ -5,15 +5,15 @@ use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
 use wasmtime_wasi::WasiCtxBuilder;
 
 use crate::add_bind_function_with_module;
-use crate::func::attach::wasm_attach_bpf_program;
-use crate::func::close::wasm_close_bpf_object;
-use crate::func::fd_by_name::wasm_bpf_map_fd_by_name;
-use crate::func::load::wasm_load_bpf_object;
-use crate::func::map_operate::wasm_bpf_map_operate;
-use crate::func::poll::wasm_bpf_buffer_poll;
+use crate::bpf::attach::wasm_attach_bpf_program;
+use crate::bpf::close::wasm_close_bpf_object;
+use crate::bpf::fd_by_name::wasm_bpf_map_fd_by_name;
+use crate::bpf::load::wasm_load_bpf_object;
+use crate::bpf::map_operate::wasm_bpf_map_operate;
+use crate::bpf::poll::wasm_bpf_buffer_poll;
 use crate::{
     add_bind_function, add_bind_function_with_module_and_name,
-    func::wrapper_poll,
+    bpf::wrapper_poll,
     handle::{ProgramOperation, WasmProgramHandle},
     state::AppState,
     Config, MAIN_MODULE_NAME, POLL_WRAPPER_FUNCTION_NAME,

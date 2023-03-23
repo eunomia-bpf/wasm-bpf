@@ -1,3 +1,7 @@
+//! This module contains tests for the runtime.
+//!
+use flexi_logger::Logger;
+
 use crate::handle::WasmProgramHandle;
 use crate::pipe::ReadableWritePipe;
 use crate::state::CallerType;
@@ -46,16 +50,23 @@ fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
         }
     }
 }
+
 fn test_example(name: &str, config: Config, timeout_sec: u64) {
     test_example_and_wait(name, config, WaitPolicy::WaitUntilTimedOut(timeout_sec));
 }
+
 #[test]
 fn test_run_tracing_wasm_bpf_module() {
-    test_example("execve.wasm", Config::default(), 3);
-    test_example("bootstrap.wasm", Config::default(), 3);
-    test_example("opensnoop.wasm", Config::default(), 3);
-    test_example("lsm.wasm", Config::default(), 3);
-    test_example("rust-bootstrap.wasm", Config::default(), 3);
+    if let Ok(l) = Logger::try_with_str("debug") {
+        l.start().ok();
+    }
+    thread::spawn(move || {
+        test_example("execve.wasm", Config::default(), 3);
+        test_example("bootstrap.wasm", Config::default(), 3);
+        test_example("opensnoop.wasm", Config::default(), 3);
+        test_example("rust-bootstrap.wasm", Config::default(), 3);
+    });
+    thread::sleep(Duration::from_secs(60));
 }
 
 #[test]
@@ -65,18 +76,29 @@ fn test_run_network_wasm_bpf_module() {
 }
 
 #[test]
+fn test_run_lsm_wasm_bpf_module() {
+    test_example("lsm.wasm", Config::default(), 3);
+}
+
+#[test]
 fn test_run_wasm_bpf_module_maps() {
     test_example("runqlat.wasm", Config::default(), 3);
 }
 
 #[test]
 fn test_run_wasm_bpf_module_with_callback() {
+    if let Ok(l) = Logger::try_with_str("debug") {
+        l.start().ok();
+    }
     let mut config = Config::default();
     config.set_callback_values(
         String::from("go-callback"),
         String::from("callback-wrapper"),
     );
-    test_example("go-execve.wasm", config, 3);
+    thread::spawn(move || {
+        test_example("go-execve.wasm", config, 3);
+    });
+    thread::sleep(Duration::from_secs(3));
 }
 
 #[test]
@@ -146,7 +168,6 @@ fn test_pause_and_resume_wasm_program() {
     let tick_count_2 = count_tick();
     println!("Tick count 2: {}", tick_count_2);
     // Tick count should not differ than 1.
-    // Why not equal?
     // if the program was paused at 3.9999999s. And the resume function will take 0.0001s, we may got another tick.
     assert!((tick_count_1 - tick_count_2).abs() < 1);
     thread::sleep(Duration::from_secs(3));

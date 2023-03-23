@@ -5,7 +5,7 @@
 //!
 use log::error;
 
-use crate::{func::EINVAL, state::CallerType};
+use crate::{bpf::EINVAL, state::CallerType};
 
 use super::{poll::wasm_bpf_buffer_poll, BpfObjectType, WasmPointer};
 

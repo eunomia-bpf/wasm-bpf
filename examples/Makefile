@@ -39,5 +39,5 @@ wasm-bpf-cpp:
 	cp ../runtime/cpp/build/bin/Release/wasm-bpf .
 
 wasm-bpf-rs:
-	cd ../runtime/cmd && cargo build --release
+	cd ../runtime/cli && cargo build --release
 	cp ../runtime/target/release/wasm-bpf wasm-bpf

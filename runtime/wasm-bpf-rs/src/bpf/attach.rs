@@ -11,7 +11,7 @@ use crate::{ensure_c_str, ensure_program_mut_by_state, state::CallerType};
 
 use super::{BpfObjectType, WasmString};
 
-// attach a bpf program to hook points
+/// attach a bpf program to hook points
 pub fn wasm_attach_bpf_program(
     mut caller: CallerType,
     program: BpfObjectType,

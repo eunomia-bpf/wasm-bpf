@@ -3,7 +3,7 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-mod func;
+mod bpf;
 mod state;
 mod utils;
 

@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 
 use anyhow::{anyhow, bail, Context};
+use log::debug;
 use wasmtime::Engine;
 
 /// This is the signal that will be sended to the hanging epoch interruption callback function
@@ -51,6 +52,7 @@ impl WasmProgramHandle {
     /// Terminate the wasm program
     /// Error will be returned when the program was already terminated
     pub fn terminate(&self) -> anyhow::Result<()> {
+        debug!("Terminating wasm program");
         self.engine.increment_epoch();
         self.operation_tx
             .send(ProgramOperation::Terminate)
