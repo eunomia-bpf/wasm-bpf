@@ -9,7 +9,7 @@ use std::{
     slice::from_raw_parts,
 };
 
-use libbpf_rs::ibbpf_sys::{
+use libbpf_rs::libbpf_sys::{
     bpf_map, bpf_map__fd, bpf_map__set_autocreate, bpf_map__set_key_size, bpf_map__set_type,
     bpf_map__set_value_size, bpf_map__type, perf_buffer, perf_buffer__free, perf_buffer__new,
     perf_buffer__poll, ring_buffer, ring_buffer__free, ring_buffer__new, ring_buffer__poll,
