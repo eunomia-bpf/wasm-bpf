@@ -14,7 +14,7 @@ pub enum ProgramOperation {
 
 /// This is a handle to the wasm program
 pub struct WasmProgramHandle {
-    operation_tx: mpsc::Sender<ProgramOperation>,
+    operation_tx: Option<mpsc::Sender<ProgramOperation>>,
     paused: bool,
     engine: Engine,
 }
@@ -22,7 +22,7 @@ pub struct WasmProgramHandle {
 impl WasmProgramHandle {
     pub(crate) fn new(operation_tx: mpsc::Sender<ProgramOperation>, engine: Engine) -> Self {
         Self {
-            operation_tx,
+            operation_tx: Some(operation_tx),
             engine,
             paused: false,
         }
@@ -44,6 +44,8 @@ impl WasmProgramHandle {
             bail!("Already running!");
         }
         self.operation_tx
+            .as_ref()
+            .ok_or_else(|| anyhow!("Already terminated!"))?
             .send(ProgramOperation::Resume)
             .with_context(|| anyhow!("Failed to send resume operation"))?;
         self.paused = false;
@@ -51,12 +53,18 @@ impl WasmProgramHandle {
     }
     /// Terminate the wasm program
     /// Error will be returned when the program was already terminated
-    pub fn terminate(&self) -> anyhow::Result<()> {
+    pub fn terminate(&mut self) -> anyhow::Result<()> {
         debug!("Terminating wasm program");
         self.engine.increment_epoch();
-        self.operation_tx
-            .send(ProgramOperation::Terminate)
-            .with_context(|| anyhow!("Failed to send terminate operation"))?;
-        Ok(())
+        if self.operation_tx.is_none() {
+            bail!("Already terminated!");
+        } else {
+            self.operation_tx
+                .take()
+                .unwrap()
+                .send(ProgramOperation::Terminate)
+                .with_context(|| anyhow!("Failed to send terminate operation"))?;
+            Ok(())
+        }
     }
 }

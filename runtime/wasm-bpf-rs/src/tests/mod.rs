@@ -38,7 +38,8 @@ fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
         let (wasm_handle, _) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
         *handle_out = Some(wasm_handle);
     } else if let WaitPolicy::WaitUntilTimedOut(timeout_sec) = wait_policy {
-        let (wasm_handle, join_handle) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
+        let (mut wasm_handle, join_handle) =
+            run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
         thread::sleep(Duration::from_secs(timeout_sec));
         // What if the wasm programs ends before the timeout_sec? If that happened, terminate will be failing.
         // So there shouldn't be `unwrap`
@@ -57,16 +58,10 @@ fn test_example(name: &str, config: Config, timeout_sec: u64) {
 
 #[test]
 fn test_run_tracing_wasm_bpf_module() {
-    if let Ok(l) = Logger::try_with_str("debug") {
-        l.start().ok();
-    }
-    thread::spawn(move || {
-        test_example("execve.wasm", Config::default(), 3);
-        test_example("bootstrap.wasm", Config::default(), 3);
-        test_example("opensnoop.wasm", Config::default(), 3);
-        test_example("rust-bootstrap.wasm", Config::default(), 3);
-    });
-    thread::sleep(Duration::from_secs(60));
+    test_example("execve.wasm", Config::default(), 3);
+    test_example("bootstrap.wasm", Config::default(), 3);
+    test_example("opensnoop.wasm", Config::default(), 3);
+    test_example("rust-bootstrap.wasm", Config::default(), 3);
 }
 
 #[test]
@@ -192,4 +187,42 @@ fn test_custom_host_function() {
 
 fn host_func_plus_i32(_caller: CallerType, a: i32, b: i32) -> i32 {
     a + b
+}
+
+fn very_long_host_func() {
+    println!("Sleeping started..");
+    std::thread::sleep(Duration::from_secs(10));
+    println!("Sleeping done");
+}
+
+#[test]
+fn test_interruption_in_host_function() {
+    Logger::try_with_str("debug").unwrap().start().unwrap();
+    let module_binary = std::fs::read(get_test_file_path("interruption_in_hostfunc.wasm")).unwrap();
+    let args = vec!["test".to_string()];
+
+    let (tx, rx) = mpsc::channel::<WasmProgramHandle>();
+    std::thread::spawn(move || {
+        let mut runner =
+            WasmBpfModuleRunner::new(&module_binary[..], &args[..], Config::default()).unwrap();
+        runner
+            .register_host_function("test", "long_sleep", very_long_host_func)
+            .unwrap();
+        let (wasm_handle, func_wrapper) = runner.into_engine_and_entry_func().unwrap();
+        tx.send(wasm_handle).unwrap();
+        func_wrapper.run().unwrap();
+    });
+    let mut handle = rx.recv().unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    handle.terminate().unwrap();
+}
+
+#[test]
+fn test_interruption_in_wasm_callback() {
+    let module_binary = std::fs::read(get_test_file_path("interruption_in_callback.wasm")).unwrap();
+    let args = vec!["test".to_string()];
+    let (mut handle, _) =
+        run_wasm_bpf_module_async(&module_binary[..], &args[..], Config::default()).unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    handle.terminate().unwrap();
 }

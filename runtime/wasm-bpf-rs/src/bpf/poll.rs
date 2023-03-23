@@ -99,7 +99,12 @@ extern "C" fn sample_function_wrapper(ctx: *mut c_void, data: *mut c_void, size:
                 return v;
             }
             Err(e) => {
-                error!("Failed to perform indirect call when polling: {}", e);
+                error!(
+                    "Failed to perform indirect call when polling: {} ; {}\n{}",
+                    e.to_string(),
+                    e.root_cause(),
+                    e.backtrace()
+                );
                 return 0;
             }
         }
