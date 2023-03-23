@@ -1,3 +1,8 @@
+//!  SPDX-License-Identifier: MIT
+//!
+//! Copyright (c) 2023, eunomia-bpf
+//! All rights reserved.
+//!
 use std::{
     any::Any,
     io::{self, Cursor, Write},
@@ -9,9 +14,12 @@ use wasi_common::{
     Error, ErrorExt, WasiFile,
 };
 
+/// This is a pipe that can be read from and written to.
+/// The original wasmtime pipe is only writable when the wasm program is running.
 pub struct ReadableWritePipe<W: Write> {
     buf: Arc<RwLock<W>>,
 }
+
 #[wiggle::async_trait]
 impl<W: Write + Any + Send + Sync> WasiFile for ReadableWritePipe<W> {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -44,6 +52,7 @@ impl<W: Write + Any + Send + Sync> WasiFile for ReadableWritePipe<W> {
         false
     }
 }
+
 impl<W: Write> ReadableWritePipe<W> {
     pub fn borrow(&self) -> std::sync::RwLockWriteGuard<W> {
         RwLock::write(&self.buf).unwrap()

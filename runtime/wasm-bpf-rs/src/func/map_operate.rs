@@ -16,6 +16,25 @@ use crate::{ensure_enough_memory, func::EINVAL, state::CallerType, utils::Caller
 
 use super::WasmPointer;
 
+/// get map info for map key value size and types
+fn get_map_info(fd: i32) -> Result<bpf_map_info, i32> {
+    let mut map_info = unsafe { std::mem::zeroed::<bpf_map_info>() };
+    let mut info_len: u32 = std::mem::size_of::<bpf_map_info>() as u32;
+    let ret = unsafe {
+        bpf_obj_get_info_by_fd(
+            fd,
+            &mut map_info as *mut bpf_map_info as *mut c_void,
+            &mut info_len,
+        )
+    };
+    if ret != 0 {
+        error!("Failed to get map info: {}", ret);
+        return Err(ret);
+    }
+    Ok(map_info)
+}
+
+/// map operate, used for map update, lookup, delete, get_next_key
 pub fn wasm_bpf_map_operate(
     mut caller: CallerType,
     fd: i32,
@@ -25,21 +44,15 @@ pub fn wasm_bpf_map_operate(
     next_key: WasmPointer, // receives the next_key; Since size of key isn't controlled by us, so it's a bit harder to ensure the safety
     flags: u64,
 ) -> i32 {
-    debug!("Map operate");
+    debug!(
+        "map operate: fd: {}, cmd: {}, key: {}, value: {}, next_key: {}, flags: {}",
+        fd, cmd, key, value, next_key, flags
+    );
     let (key_size, value_size) = {
-        let mut map_info = unsafe { std::mem::zeroed::<bpf_map_info>() };
-        let mut info_len: u32 = std::mem::size_of::<bpf_map_info>() as u32;
-        let ret = unsafe {
-            bpf_obj_get_info_by_fd(
-                fd,
-                &mut map_info as *mut bpf_map_info as *mut c_void,
-                &mut info_len as *mut u32,
-            )
+        let map_info = match get_map_info(fd) {
+            Ok(v) => v,
+            Err(err) => return err,
         };
-        if ret != 0 {
-            error!("Failed to query map info: {}", ret);
-            return ret;
-        }
         (map_info.key_size as usize, map_info.value_size as usize)
     };
 
@@ -108,7 +121,7 @@ pub fn wasm_bpf_map_operate(
         // More syscall commands can be allowed here
         s => {
             debug!("Map operation `{}` currently not supported", s);
-            return EINVAL;
+            return -EINVAL;
         }
     };
     0
@@ -117,14 +130,9 @@ pub fn wasm_bpf_map_operate(
 #[cfg(test)]
 
 mod tests {
-    use std::ffi::c_void;
+    use libbpf_rs::ObjectBuilder;
 
-    use libbpf_rs::{
-        libbpf_sys::{bpf_map_info, bpf_obj_get_info_by_fd},
-        ObjectBuilder,
-    };
-
-    use crate::tests::get_test_file_path;
+    use crate::{func::map_operate::get_map_info, tests::get_test_file_path};
 
     #[test]
     fn test_retrive_key_value_size_by_bpf_obj_get_info_by_fd() {
@@ -141,16 +149,7 @@ mod tests {
             .unwrap();
         // Iterate over maps, call `bpf_obj_get_info_by_fd` and compare with sizes that libbpf provides
         for map in object.maps_iter() {
-            let mut map_info = unsafe { std::mem::zeroed::<bpf_map_info>() };
-            let mut info_len = std::mem::size_of::<bpf_map_info>() as u32;
-            let ret = unsafe {
-                bpf_obj_get_info_by_fd(
-                    map.fd(),
-                    &mut map_info as *mut bpf_map_info as *mut c_void,
-                    &mut info_len as *mut u32,
-                )
-            };
-            assert_eq!(ret, 0, "Failed to run `bpf_obj_get_info_by_fd`");
+            let map_info = get_map_info(map.fd()).unwrap();
             assert_eq!(
                 map.key_size(),
                 map_info.key_size,
