@@ -12,7 +12,7 @@ use libbpf_rs::libbpf_sys::{
 };
 use log::{debug, error};
 
-use crate::{ensure_enough_memory, bpf::EINVAL, state::CallerType, utils::CallerUtils};
+use crate::{bpf::EINVAL, ensure_enough_memory, state::CallerType, utils::CallerUtils};
 
 use super::WasmPointer;
 

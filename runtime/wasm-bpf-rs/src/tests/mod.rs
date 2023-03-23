@@ -56,9 +56,9 @@ fn test_example(name: &str, config: Config, timeout_sec: u64) {
 
 #[test]
 fn test_run_tracing_wasm_bpf_module() {
-    if let Ok(l)=  Logger::try_with_str("debug") {
+    if let Ok(l) = Logger::try_with_str("debug") {
         l.start().ok();
-}
+    }
     thread::spawn(move || {
         test_example("execve.wasm", Config::default(), 3);
         test_example("bootstrap.wasm", Config::default(), 3);
@@ -86,8 +86,8 @@ fn test_run_wasm_bpf_module_maps() {
 
 #[test]
 fn test_run_wasm_bpf_module_with_callback() {
-    if let Ok(l)=  Logger::try_with_str("debug") {
-            l.start().ok();
+    if let Ok(l) = Logger::try_with_str("debug") {
+        l.start().ok();
     }
     let mut config = Config::default();
     config.set_callback_values(

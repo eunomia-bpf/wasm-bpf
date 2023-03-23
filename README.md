@@ -73,7 +73,7 @@ For more tools to distribute and deploy Wasm-eBPF programs for usecases from `Ob
 Add the following line to your Cargo.toml to use Wasm-bpf as a `library`:
 
 ```toml
-wasm-bpf-rs = "0.2.1"
+wasm-bpf-rs = "0.2.2"
 ```
 
 See the [main.rs](runtime/cli/src/main.rs) for an example of how to use the `wasm-bpf-rs` library.
