@@ -19,8 +19,8 @@ use log::{debug, error};
 use wasmtime::Val;
 
 use crate::{
-    ensure_enough_memory, ensure_program_mut_by_state,
     bpf::{EINVAL, ENOENT},
+    ensure_enough_memory, ensure_program_mut_by_state,
     state::CallerType,
     utils::{CallerUtils, FunctionQuickCall},
 };
@@ -122,12 +122,14 @@ pub fn wasm_bpf_buffer_poll(
     max_size: i32,
     timeout_ms: i32,
 ) -> i32 {
-    debug!("bpf buffer poll");
+    debug!(
+        "wasm_bpf_buffer_poll: program: {:?}, fd: {}, sample_func: {:?}, ctx: {:?}, data: {:?}, max_size: {}, timeout_ms: {}",
+        program, fd, sample_func, ctx, data, max_size, timeout_ms);
     let caller_ptr = &caller as *const CallerType as *mut CallerType<'static>;
     // Ensure that there is enough memory in the wasm side
     ensure_enough_memory!(caller, data, max_size, EINVAL);
     let state = caller.data_mut();
-    let map_ptr = unsafe { state.get_map_ptr_by_fd(fd) };
+    let map_ptr = state.get_map_ptr_by_fd(fd);
     let object = ensure_program_mut_by_state!(state, program);
 
     if object.buffer.is_none() {

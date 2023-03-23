@@ -132,7 +132,7 @@ pub fn wasm_bpf_map_operate(
 mod tests {
     use libbpf_rs::ObjectBuilder;
 
-    use crate::{func::map_operate::get_map_info, tests::get_test_file_path};
+    use crate::{bpf::map_operate::get_map_info, tests::get_test_file_path};
 
     #[test]
     fn test_retrive_key_value_size_by_bpf_obj_get_info_by_fd() {

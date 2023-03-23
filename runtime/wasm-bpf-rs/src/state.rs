@@ -40,12 +40,14 @@ pub struct AppState {
     pub wrapper_called: bool,
     pub operation_rx: mpsc::Receiver<ProgramOperation>,
 }
+
 #[allow(unused)]
 struct MyObject {
     pub ptr: *mut libbpf_sys::bpf_object,
     _maps: HashMap<String, Map>,
     _progs: HashMap<String, Program>,
 }
+
 impl AppState {
     pub fn new(
         wasi: WasiCtx,
@@ -63,16 +65,18 @@ impl AppState {
             operation_rx,
         }
     }
-    pub unsafe fn get_map_ptr_by_fd(&self, fd: i32) -> Option<*const bpf_map> {
+    pub fn get_map_ptr_by_fd(&self, fd: i32) -> Option<*const bpf_map> {
         for prog in self.object_map.values() {
-            let ptr = prog.get_object() as *const Object as *const MyObject;
-            let bpf_object_ptr = (*ptr).ptr;
-            let mut pos = bpf_object__next_map(bpf_object_ptr, null());
-            while !pos.is_null() {
-                if bpf_map__fd(pos) == fd {
-                    return Some(pos);
+            unsafe {
+                let ptr = prog.get_object() as *const Object as *const MyObject;
+                let bpf_object_ptr = (*ptr).ptr;
+                let mut pos = bpf_object__next_map(bpf_object_ptr, null());
+                while !pos.is_null() {
+                    if bpf_map__fd(pos) == fd {
+                        return Some(pos);
+                    }
+                    pos = bpf_object__next_map(bpf_object_ptr, pos);
                 }
-                pos = bpf_object__next_map(bpf_object_ptr, pos);
             }
         }
         None
