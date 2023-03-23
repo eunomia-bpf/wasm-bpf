@@ -20,7 +20,7 @@ use wasmtime::Val;
 
 use crate::{
     ensure_enough_memory, ensure_program_mut_by_state,
-    func::{EINVAL, ENOENT},
+    bpf::{EINVAL, ENOENT},
     state::CallerType,
     utils::{CallerUtils, FunctionQuickCall},
 };

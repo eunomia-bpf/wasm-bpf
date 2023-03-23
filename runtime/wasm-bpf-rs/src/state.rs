@@ -12,7 +12,7 @@ use libbpf_rs::{
 use wasmtime::Caller;
 use wasmtime_wasi::WasiCtx;
 
-use crate::{func::poll::BpfBuffer, handle::ProgramOperation};
+use crate::{bpf::poll::BpfBuffer, handle::ProgramOperation};
 
 const FIRST_OBJECT_ID: u64 = 1;
 
