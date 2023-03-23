@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "cmd", "wasm-bpf-rs"
+    "cli", "wasm-bpf-rs"
 ]
 
 [profile.release]
