@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 
 use anyhow::{anyhow, Context};
+use wasi_common::I32Exit;
 use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
 use wasmtime_wasi::WasiCtxBuilder;
 
@@ -130,5 +131,22 @@ impl WasmBpfModuleRunner {
         func: impl IntoFunc<AppState, Params, Args>,
     ) -> anyhow::Result<()> {
         self.linker.func_wrap(module, name, func).map(|_| ())
+    }
+}
+
+/// A trait which will be implemented on anyhow::Error to check whether the error indicates an non-zero exit code
+pub trait GetWasmExitCodeHelper {
+    /// Returns `None` if the error doesn't indicate an non-zero exit code. Otherwise returns the exit code
+    fn get_wasm_exit_code(&self) -> Option<i32>;
+}
+
+impl GetWasmExitCodeHelper for anyhow::Error {
+    fn get_wasm_exit_code(&self) -> Option<i32> {
+        for cause in self.chain() {
+            if let Some(err) = cause.downcast_ref::<I32Exit>() {
+                return Some(err.0);
+            }
+        }
+        None
     }
 }
