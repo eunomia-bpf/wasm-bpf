@@ -4,6 +4,7 @@ use flexi_logger::Logger;
 
 use crate::handle::WasmProgramHandle;
 use crate::pipe::ReadableWritePipe;
+use crate::runner::GetWasmExitCodeHelper;
 use crate::state::CallerType;
 
 use super::*;
@@ -46,7 +47,11 @@ fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
         wasm_handle.terminate().ok();
 
         if let Err(e) = join_handle.join().unwrap() {
-            // We can't distinguish epoch trap and other errors easily...
+            if let Some(exit_code) = e.get_wasm_exit_code() {
+                // When the wasm program exits abnormally..
+                panic!("Wasm program exited abnormally: exit code = {}", exit_code);
+            }
+            // It was trapped. Right?
             println!("{}", e.to_string());
         }
     }
@@ -225,4 +230,32 @@ fn test_interruption_in_wasm_callback() {
         run_wasm_bpf_module_async(&module_binary[..], &args[..], Config::default()).unwrap();
     std::thread::sleep(Duration::from_secs(2));
     handle.terminate().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Wasm program exited abnormally")]
+fn test_abnormally_exited_wasm_program() {
+    test_example_and_wait(
+        "abnormal_exit.wasm",
+        Config::default(),
+        WaitPolicy::WaitUntilTimedOut(5),
+    );
+}
+
+#[test]
+fn test_normally_exited_wasm_program() {
+    test_example_and_wait(
+        "normal_exit.wasm",
+        Config::default(),
+        WaitPolicy::WaitUntilTimedOut(5),
+    );
+}
+
+#[test]
+fn test_exit_code_of_interruped_wasm_program() {
+    test_example_and_wait(
+        "long_sleep.wasm",
+        Config::default(),
+        WaitPolicy::WaitUntilTimedOut(2),
+    );
 }
