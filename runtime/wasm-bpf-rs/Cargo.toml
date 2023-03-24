@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/eunomia-bpf/wasm-bpf"
 
 [dependencies]
-anyhow = "1.0.69"
+anyhow = { version = "1.0.69",  features = ["backtrace"] }
 flexi_logger = "0.25.1"
 libbpf-rs = "0.20.0"
 log = "0.4.17"
