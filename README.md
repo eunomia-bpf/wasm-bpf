@@ -102,7 +102,7 @@ See the [examples](examples) directory for examples of eBPF programs written in 
 - [lsm](examples/lsm) and  [go-lsm](examples/go-lsm): check the permission to remove a directory
 
 `networking example`
-- [sockfilter](examples/sockfilter): monitoring packet and dealing with __sk_buff.
+- [sockfilter](examples/sockfilter): monitoring packet and dealing with `__sk_buff`.
 - [sockops](examples/sockops): Add the pid int tcp option in syn packet.
 
 ## How it works
@@ -135,6 +135,13 @@ We have two types of runtime samples:
 - A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/wasm-bpf-rs](../runtime/wasm-bpf-rs) for more details.
 
 The runtime can be built as a library or a standalone executable. see [docs/build.md](docs/build.md) to build the runtimes.
+
+### Use Nix
+
+This project has nix flake and direnv support.
+See:
+- [direnv](https://github.com/direnv/direnv)
+- [Nix](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix.html)
 
 ## LICENSE
 
