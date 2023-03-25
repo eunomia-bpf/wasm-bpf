@@ -23,7 +23,9 @@
     {
       packages = rec {
         wasm-bpf = fenix-naersk.buildPackage {
+          pname = "wasm-bpf";
           hardeningDisable = [ "all" ];
+          cargoBuildOptions = x: x ++ [ "-p" "wasm-bpf" ];
           buildInputs = with pkgs; [
             zlib
           ];
