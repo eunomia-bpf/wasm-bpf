@@ -19,6 +19,7 @@
 
 using namespace std;
 extern "C" {
+#include <net/if.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 extern bool wasm_runtime_call_indirect(wasm_exec_env_t exec_env,
@@ -199,6 +200,21 @@ static int attach_cgroup(struct bpf_program* prog, const char* path) {
     return 0;
 }
 
+static int attach_xdp(struct bpf_program* prog, const char* argv) {
+    int ifindex = if_nametoindex(argv);
+    if (ifindex < 1) {
+        printf("Failed to find network interface %s\n", argv);
+        return -1;
+    }
+    if(!bpf_program__attach_xdp(prog, ifindex)) {
+        printf("Prog %s failed to attach network interface %s\n",
+               bpf_program__name(prog),
+               argv);
+        return -1;
+    }
+    return 0;
+}
+
 /// @brief attach a specific bpf program by name and target.
 /// support auto attach for most bpf program types:
 /// tracepoint, kprobe, fentry, lsm, etc.
@@ -220,6 +236,8 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
         // TODO: support more attach type
         if (strcmp(sec_name, "sockops") == 0) {
             return attach_cgroup(prog, attach_target);
+        } else if (strcmp(sec_name, "xdp") == 0) {
+            return attach_xdp(prog, attach_target);
         } else {
             // try auto attach if new attach target is not supported
             link = bpf_program__attach(
