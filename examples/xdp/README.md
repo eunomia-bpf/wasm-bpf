@@ -25,3 +25,17 @@ After that you can see it's output by:
 ```sh
 cat /sys/kernel/debug/tracing/trace_pipe
 ```
+
+It will look like:
+
+```
+          <idle>-0       [000] d.s.. 89309.534085: bpf_trace_printk: packet size: 66
+
+          <idle>-0       [000] d.s.. 89309.595121: bpf_trace_printk: packet size: 66
+
+          <idle>-0       [000] d.s.. 89309.686768: bpf_trace_printk: packet size: 126
+
+          <idle>-0       [000] d.s.. 89309.689973: bpf_trace_printk: packet size: 66
+
+          <idle>-0       [000] d.s.. 89309.836179: bpf_trace_printk: packet size: 54
+```

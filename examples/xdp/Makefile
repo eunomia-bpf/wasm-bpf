@@ -4,7 +4,7 @@ ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' | sed 's/aarch64/arm64/' | sed 's
 THIRD_PARTY := ../../runtime/cpp/third_party
 
 VMLINUX := $(THIRD_PARTY)/vmlinux/$(ARCH)/vmlinux.h
-BPF_HEADERS := $(THIRD_PARTY)/
+BPF_HEADERS := $(THIRD_PARTY)
 # Use our own libbpf API headers and Linux UAPI headers distributed with
 # libbpf to avoid dependency on system-wide headers, which could be missing or
 # outdated
