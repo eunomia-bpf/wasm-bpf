@@ -91,7 +91,7 @@ struct bpf_object_skeleton {
 };
 
 /*
-    set the bpf prog attach taeget, for example:
+    set the bpf prog attach target, for example:
         sockops need to set attach cgroup
         sockfilter need to set attach nic
         ...
