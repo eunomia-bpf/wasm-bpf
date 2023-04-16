@@ -28,8 +28,8 @@ pub fn wasm_attach_bpf_program(
     };
     let state = caller.data_mut();
     let object = ensure_program_mut_by_state!(state, program);
-
-    let program = match object.get_object_mut().prog_mut(&name_str) {
+    let mut object_guard = object.get_object_mut();
+    let program = match object_guard.prog_mut(&name_str) {
         Some(v) => v,
         None => {
             debug!("No program named `{}` found", name_str);
