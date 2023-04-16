@@ -22,8 +22,8 @@ use crate::{
 
 use super::{BpfObjectType, WasmPointer};
 
-pub type SampleCallbackParams = (u32, u32, u32);
-pub type SampleCallbackReturn = i32;
+type SampleCallbackParams = (u32, u32, u32);
+type SampleCallbackReturn = i32;
 
 /// polling the bpf buffer
 ///

@@ -116,4 +116,4 @@ impl AppState {
     }
 }
 
-pub type CallerType<'a> = Caller<'a, AppState>;
+pub(crate) type CallerType<'a> = Caller<'a, AppState>;

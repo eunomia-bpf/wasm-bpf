@@ -69,9 +69,11 @@ macro_rules! ensure_c_str {
         }
     }};
 }
-
+/// The pointer type in 32bit wasm
 pub type WasmPointer = u32;
+/// The handle to a bpf object
 pub type BpfObjectType = u64;
+/// The string type in wasm, is also a pointer
 pub type WasmString = u32;
 
 #[macro_export]
