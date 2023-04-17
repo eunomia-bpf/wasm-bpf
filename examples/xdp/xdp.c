@@ -7,7 +7,7 @@
 int main(int argc, char* argv[]) {
     struct xdp_bpf* skel = NULL;
     int err;
-    
+
     skel = xdp_bpf__open_and_load();
     if (!skel) {
         printf("Failed to open and load BPF skeleton\n");

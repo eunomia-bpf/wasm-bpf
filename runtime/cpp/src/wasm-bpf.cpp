@@ -206,10 +206,9 @@ static int attach_xdp(struct bpf_program* prog, const char* argv) {
         printf("Failed to find network interface %s\n", argv);
         return -1;
     }
-    if(!bpf_program__attach_xdp(prog, ifindex)) {
+    if (!bpf_program__attach_xdp(prog, ifindex)) {
         printf("Prog %s failed to attach network interface %s\n",
-               bpf_program__name(prog),
-               argv);
+               bpf_program__name(prog), argv);
         return -1;
     }
     return 0;

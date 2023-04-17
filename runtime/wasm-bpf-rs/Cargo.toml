@@ -11,9 +11,10 @@ repository = "https://github.com/eunomia-bpf/wasm-bpf"
 [dependencies]
 anyhow = { version = "1.0.69",  features = ["backtrace"] }
 flexi_logger = "0.25.1"
-libbpf-rs = "0.20.0"
+libbpf-rs = "0.20.1"
 log = "0.4.17"
 wasmtime = "5.0.1"
 wasmtime-wasi = "5.0.0"
 wasi-common = "5.0.0"
 wiggle = "5.0.1"
+ouroboros = "0.15.6"
