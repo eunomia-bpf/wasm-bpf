@@ -1,9 +1,9 @@
 [package]
 name = "wasm-bpf"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "A WebAssembly runtime cmd for eBPF programs based on libbpf and wasmtime (part of wasm-bpf project)"
+description = "A WebAssembly runtime cli for eBPF programs based on libbpf and wasmtime (part of wasm-bpf project)"
 documentation = "https://docs.eunomia.dev/"
 readme = "README.md"
 repository = "https://github.com/eunomia-bpf/wasm-bpf"
@@ -13,4 +13,4 @@ anyhow = "1.0.69"
 clap = { version = "4.1.4", features = ["derive"] }
 flexi_logger = "0.25.1"
 log = "0.4.17"
-wasm-bpf-rs = { path = "../wasm-bpf-rs", version = "0.2.1" }
+wasm-bpf-rs = { path = "../wasm-bpf-rs", version = "0.3.1" }
