@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "libbpf-wasm.h"
 #include "xdp.skel.h"
 
