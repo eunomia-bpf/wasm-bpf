@@ -51,7 +51,7 @@ impl WasmProgramHandle {
     }
     /// Terminate the wasm program
     /// Error will be returned when the program was already terminated
-    pub fn terminate(&mut self) -> anyhow::Result<()> {
+    pub fn terminate(self) -> anyhow::Result<()> {
         debug!("Terminating wasm program");
         self.engine.increment_epoch();
         self.operation_tx

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
-// This function is only needed when running tests, so I put it here.
+/// This function is only needed when running tests, so I put it here.
 pub fn get_test_file_path(name: impl AsRef<str>) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("tests");
@@ -39,8 +39,7 @@ fn test_example_and_wait(name: &str, config: Config, wait_policy: WaitPolicy) {
         let (wasm_handle, _) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
         *handle_out = Some(wasm_handle);
     } else if let WaitPolicy::WaitUntilTimedOut(timeout_sec) = wait_policy {
-        let (mut wasm_handle, join_handle) =
-            run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
+        let (wasm_handle, join_handle) = run_wasm_bpf_module_async(&buffer, &args, config).unwrap();
         thread::sleep(Duration::from_secs(timeout_sec));
         // What if the wasm programs ends before the timeout_sec? If that happened, terminate will be failing.
         // So there shouldn't be `unwrap`
@@ -174,7 +173,7 @@ fn test_pause_and_resume_wasm_program() {
     let tick_count_3 = count_tick();
     println!("Tick count 3: {}", tick_count_3);
     assert!(tick_count_3 - tick_count_2 >= 2);
-    handle.as_mut().unwrap().terminate().unwrap();
+    handle.take().unwrap().terminate().unwrap();
 }
 
 #[test]
@@ -217,7 +216,7 @@ fn test_interruption_in_host_function() {
         tx.send(wasm_handle).unwrap();
         func_wrapper.run().unwrap();
     });
-    let mut handle = rx.recv().unwrap();
+    let handle = rx.recv().unwrap();
     std::thread::sleep(Duration::from_secs(2));
     handle.terminate().unwrap();
 }
@@ -226,7 +225,7 @@ fn test_interruption_in_host_function() {
 fn test_interruption_in_wasm_callback() {
     let module_binary = std::fs::read(get_test_file_path("interruption_in_callback.wasm")).unwrap();
     let args = vec!["test".to_string()];
-    let (mut handle, _) =
+    let (handle, _) =
         run_wasm_bpf_module_async(&module_binary[..], &args[..], Config::default()).unwrap();
     std::thread::sleep(Duration::from_secs(2));
     handle.terminate().unwrap();
