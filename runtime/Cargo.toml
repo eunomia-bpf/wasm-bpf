@@ -1,7 +1,5 @@
 [workspace]
-members = [
-    "cli", "wasm-bpf-rs"
-]
+members = ["cli", "wasm-bpf-rs", "c-wrapper"]
 
 [profile.release]
 opt-level = 3
