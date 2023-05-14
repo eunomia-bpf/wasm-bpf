@@ -1,0 +1,13 @@
+[package]
+name = "wasm-bpf-c-wrapper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "wasm_bpf"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+anyhow = "1.0.71"
+wasm-bpf-rs = { path = "../wasm-bpf-rs", version = "*" }

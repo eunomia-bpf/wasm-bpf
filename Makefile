@@ -17,7 +17,7 @@ clean:
 
 install-deps: ## install deps
 	apt update
-	apt-get install libcurl4-openssl-dev libelf-dev clang llvm pahole -y ## libgtest-dev
+	apt-get install libcurl4-openssl-dev libelf-dev clang llvm pahole zlib1g-dev -y ## libgtest-dev
 
 /opt/wasi-sdk:
 	wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-17/wasi-sdk-17.0-linux.tar.gz
