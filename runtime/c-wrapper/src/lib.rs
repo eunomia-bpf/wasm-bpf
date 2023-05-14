@@ -10,7 +10,7 @@
 use std::{
     ffi::{c_char, c_int, c_ulonglong, CStr},
     slice,
-    thread::JoinHandle, fmt::Display,
+    thread::JoinHandle,
 };
 
 use wasm_bpf_rs::{handle::WasmProgramHandle, Config};
@@ -24,13 +24,16 @@ unsafe fn dump_strings_from_argv(argv: *const *const c_char, argc: c_int) -> Vec
     args_vec
 }
 
-fn call_error_callback(cb: Option<unsafe extern "C" fn(*const c_char)>, err: impl Display) {
+fn call_error_callback(cb: Option<unsafe extern "C" fn(*const c_char)>, err: anyhow::Error) {
     if let Some(cb) = cb {
-        // let ptr = e.to_string().as_ptr() as *const c_char;
-        let s: String = err.to_string();
+        let mut s = String::default();
+        for e in err.chain() {
+            s.push_str(e.to_string().as_str());
+            s.push('\n');
+        }
         let mut bytes = s.as_bytes().to_vec();
         bytes.push(0);
-        unsafe { cb((&bytes).as_ptr() as *const c_char) };
+        unsafe { cb((bytes).as_ptr() as *const c_char) };
     }
 }
 
