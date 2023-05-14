@@ -26,7 +26,7 @@ jobs:
       run: |
           cd runtime/c-wrapper
           cargo build --release
-    - name: Combile several archives
+    - name: Merge several archives
       run: |
         cp ./runtime/target/release/libwasm_bpf.a .
         cp /usr/lib/x86_64-linux-gnu/libz.a .

@@ -10,7 +10,7 @@
 use std::{
     ffi::{c_char, c_int, c_ulonglong, CStr},
     slice,
-    thread::JoinHandle,
+    thread::JoinHandle, fmt::Display,
 };
 
 use wasm_bpf_rs::{handle::WasmProgramHandle, Config};
@@ -22,6 +22,16 @@ unsafe fn dump_strings_from_argv(argv: *const *const c_char, argc: c_int) -> Vec
         args_vec.push(curr);
     }
     args_vec
+}
+
+fn call_error_callback(cb: Option<unsafe extern "C" fn(*const c_char)>, err: impl Display) {
+    if let Some(cb) = cb {
+        // let ptr = e.to_string().as_ptr() as *const c_char;
+        let s: String = err.to_string();
+        let mut bytes = s.as_bytes().to_vec();
+        bytes.push(0);
+        unsafe { cb((&bytes).as_ptr() as *const c_char) };
+    }
 }
 
 #[no_mangle]
@@ -38,11 +48,7 @@ pub extern "C" fn wasm_bpf_module_run(
         unsafe { slice::from_raw_parts(module_binary, module_binary_size as usize) };
     let args_vec = unsafe { dump_strings_from_argv(argv, argc) };
     if let Err(e) = wasm_bpf_rs::run_wasm_bpf_module(module_binary, &args_vec, Config::default()) {
-        if let Some(cb) = error_callback {
-            let ptr = e.to_string().as_ptr() as *const c_char;
-
-            unsafe { cb(ptr) };
-        }
+        call_error_callback(error_callback, e);
         return -1;
     }
     0
@@ -66,11 +72,7 @@ pub extern "C" fn wasm_bpf_module_run_async(
         match wasm_bpf_rs::run_wasm_bpf_module_async(module_binary, &args_vec, Config::default()) {
             Ok(v) => v,
             Err(e) => {
-                if let Some(cb) = error_callback {
-                    let ptr = e.to_string().as_ptr() as *const c_char;
-
-                    unsafe { cb(ptr) };
-                }
+                call_error_callback(error_callback, e);
                 return None;
             }
         };
@@ -111,7 +113,7 @@ pub extern "C" fn wasm_bpf_handle_pause_prog(handle: *mut WrappedHandle) -> i32 
 pub extern "C" fn wasm_bpf_handle_resume_prog(handle: *mut WrappedHandle) -> i32 {
     let handle = unsafe { &mut *handle };
     if let Some(hd) = &mut handle.prog_handle {
-        if  hd.resume().is_err() {
+        if hd.resume().is_err() {
             return -1;
         }
     } else {
