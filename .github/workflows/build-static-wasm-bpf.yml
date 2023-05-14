@@ -1,0 +1,43 @@
+name: Build the static library of `wasm-bpf`
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: 'recursive'
+
+    - name: install deps
+      run: |
+          sudo make install-deps
+
+    - name: Build wasm_bpf
+      run: |
+          cd runtime/c-wrapper
+          cargo build --release
+    - name: Combile several archives
+      run: |
+        cp ./runtime/target/release/libwasm_bpf.a .
+        cp /usr/lib/x86_64-linux-gnu/libz.a .
+        cp /usr/lib/x86_64-linux-gnu/libelf.a .
+        llvm-ar x libwasm_bpf.a
+        llvm-ar x libelf.a
+        llvm-ar x libz.a
+        rm *.a
+        llvm-ar q libwasm_bpf.a *.o
+
+    - name: Upload build result
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        path: "libwasm_bpf.a"
