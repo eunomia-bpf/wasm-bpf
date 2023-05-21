@@ -24,9 +24,3 @@ func WasmCloseBpfObject(int64) int32
 //go:wasm-module wasm_bpf
 //export wasm_bpf_map_fd_by_name
 func WasmBpfMapFdByName(int64, int32) int32
-
-
-
-
-
-

@@ -1,3 +1,8 @@
+//!  SPDX-License-Identifier: MIT
+//!
+//! Copyright (c) 2023, eunomia-bpf
+//! All rights reserved.
+//!
 pub type Uint64T = u64;
 pub type Uint32T = u32;
 pub type Int32T = i32;
