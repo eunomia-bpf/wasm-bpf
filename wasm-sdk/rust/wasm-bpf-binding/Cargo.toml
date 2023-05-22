@@ -1,8 +1,0 @@
-[package]
-name = "wasm-bpf-binding"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
-description = "Binding for building eBPF programs in Wasm"
-
-[dependencies]

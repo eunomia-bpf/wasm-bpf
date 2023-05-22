@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: "recursive"
     - uses: DoozyX/clang-format-lint-action@v0.14
       with:
         source: 'examples wasm-sdk runtime/cpp/include runtime/cpp/test runtime/cpp/src'

@@ -4,3 +4,12 @@
 [submodule "third_party/wasm-micro-runtime"]
 	path = runtime/cpp/third_party/wasm-micro-runtime
 	url = https://github.com/bytecodealliance/wasm-micro-runtime
+[submodule "wasm-sdk/c"]
+	path = wasm-sdk/c
+	url = https://github.com/eunomia-bpf/wasm-bpf-guest-sdk-c
+[submodule "wasm-sdk/go_sdk"]
+	path = wasm-sdk/go_sdk
+	url = https://github.com/eunomia-bpf/wasm-bpf-guest-sdk-go
+[submodule "wasm-sdk/rust/wasm-bpf-binding"]
+	path = wasm-sdk/rust/wasm-bpf-binding
+	url = https://github.com/eunomia-bpf/wasm-bpf-guest-sdk-rust
