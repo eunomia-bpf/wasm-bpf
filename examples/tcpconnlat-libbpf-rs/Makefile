@@ -50,4 +50,4 @@ build: $(APP).bpf.o
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf tcpconnlat-libbpf-rs || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
+	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf tcpconnlat-libbpf-rs.wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
