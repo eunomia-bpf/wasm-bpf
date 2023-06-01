@@ -96,7 +96,7 @@ union Addr {
 impl Default for Addr {
     fn default() -> Self {
         Self {
-            v6: Default::default(),
+            v6: <[u8; 16]>::default(),
         }
     }
 }
