@@ -1,0 +1,49 @@
+name: Publish examples images to ghcr
+
+on:
+  push:
+    branches: [ main ]
+env:
+  GITHUB_REPO_OWNER: ${{ github.repository_owner }}
+jobs:
+  build-examples:
+      strategy:
+        matrix:
+          example-name: [bootstrap, bootstrap-libbpf-rs, execve, go-execve, go-lsm, lsm, opensnoop, runqlat, rust-bootstrap, sockfilter, sockops, tcpconnlat-libbpf-rs, uprobe, xdp]
+      runs-on: ubuntu-latest
+      name: Build example ${{ matrix.example-name }} and publish to ghcr.io
+      steps:
+        - uses: actions/checkout@v3
+          with:
+            submodules: 'recursive'
+        - name: Install ecli
+          run: |
+            cargo install ecli-rs
+        - name: Install wasi-sdk
+          run: |
+            wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sdk-20.0-linux.tar.gz -O /opt/wasi-sdk.tar.gz
+            cd /opt
+            tar -zxvf wasi-sdk.tar.gz
+        - name: Install tinygo
+          if: startsWith(matrix.example-name, 'go')
+          run: |
+            wget https://github.com/tinygo-org/tinygo/releases/download/v0.28.1/tinygo_0.28.1_amd64.deb
+            sudo dpkg -i tinygo_0.28.1_amd64.deb
+            tinygo version
+        - name: downcase REPO_OWNER
+          run: |
+            echo "REPO_OWNER=${GITHUB_REPO_OWNER,,}" >>${GITHUB_ENV}
+        - name: use REPO
+          run: |
+            echo "The value of REPO_OWNER is: ${REPO_OWNER}"
+        - name: Login to ghcr.io
+          uses: docker/login-action@v2
+          with:
+            registry: ghcr.io
+            username: ${{ github.repository_owner }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+        - name: Build the example and push it to ghcr
+          run: |
+            cd examples/${{matrix.example-name}}
+            make
+            ecli-rs push -m $(ls *.wasm) ghcr.io/$REPO_OWNER/${{matrix.example-name}}:latest -a org.opencontainers.image.title=${{matrix.example-name}}
