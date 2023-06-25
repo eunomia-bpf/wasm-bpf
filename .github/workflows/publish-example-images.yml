@@ -25,6 +25,8 @@ jobs:
             wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-20/wasi-sdk-20.0-linux.tar.gz -O /opt/wasi-sdk.tar.gz
             cd /opt
             tar -zxvf wasi-sdk.tar.gz
+            mv wasi-sdk-20.0 wasi-sdk
+            /opt/wasi-sdk/bin/clang --version
         - name: Install tinygo
           if: startsWith(matrix.example-name, 'go')
           run: |
