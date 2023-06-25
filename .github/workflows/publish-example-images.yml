@@ -18,7 +18,7 @@ jobs:
             submodules: 'recursive'
         - name: Install ecli
           run: |
-            sudo apt install -y libelf-dev zlib1g-dev
+            sudo apt install -y libelf-dev zlib1g-dev llvm
             cargo install ecli-rs
         - name: Install wasi-sdk
           run: |
