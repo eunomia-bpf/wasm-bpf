@@ -20,9 +20,9 @@ int main(int argc, char* argv[]) {
         printf("Failed to attach BPF skeleton\n");
         return -1;
     }
-    
+
     printf("Load and attach BPF uprobe successfully\n");
-    while(1){
+    while (1) {
         sleep(10);
     }
 }
