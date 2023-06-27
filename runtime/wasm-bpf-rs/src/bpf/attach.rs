@@ -3,8 +3,9 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use std::os::fd::AsRawFd;
+use std::{ffi::CString, os::fd::AsRawFd};
 
+use libc::if_nametoindex;
 use log::debug;
 
 use crate::{ensure_c_str, ensure_program_mut_by_state, state::CallerType};
@@ -39,28 +40,65 @@ pub fn wasm_attach_bpf_program(
     if let Some(attach_target) = attach_target_str {
         let section_name = program.section();
         // More attach types could be added
-        if section_name == "sockops" {
-            let cgroup_file = match std::fs::OpenOptions::new().read(true).open(&attach_target) {
-                Ok(v) => v,
-                Err(err) => {
-                    debug!(
-                        "Failed to open cgroup `{}` for attaching: {}",
-                        attach_target, err
-                    );
-                    return -1;
+        match section_name {
+            "sockops" => {
+                let cgroup_file = match std::fs::OpenOptions::new().read(true).open(&attach_target)
+                {
+                    Ok(v) => v,
+                    Err(err) => {
+                        debug!(
+                            "Failed to open cgroup `{}` for attaching: {}",
+                            attach_target, err
+                        );
+                        return -1;
+                    }
+                };
+                let fd = cgroup_file.as_raw_fd();
+                state.opened_files.push(cgroup_file);
+                let link = match program.attach_cgroup(fd) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        debug!("Failed to attach program to cgroup: {}", err);
+                        return -1;
+                    }
+                };
+                debug!("secops attached with link {:?}", link);
+                state.opened_links.push(link);
+                return 0;
+            }
+            "xdp" => {
+                debug!("Processing xdp attach to {:?}", attach_target);
+                let name_str = match CString::new(attach_target.as_bytes()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        debug!("Failed to convert xdp interface name to CStr: {}", e);
+                        return -1;
+                    }
+                };
+                // SAFETY: The input string is guaranteed to be correct
+                let ifidx = unsafe { if_nametoindex(name_str.as_ptr()) };
+                if ifidx == 0 {
+                    let e = errno::errno();
+                    debug!("Failed to get if idx, err={}, errno={}", e, e.0);
+                    return -e.0;
                 }
-            };
-            let fd = cgroup_file.as_raw_fd();
-            state.opened_files.push(cgroup_file);
-            let link = match program.attach_cgroup(fd) {
-                Ok(v) => v,
-                Err(err) => {
-                    debug!("Failed to attach program to cgroup: {}", err);
-                    return -1;
-                }
-            };
-            state.opened_links.push(link);
-            return 0;
+                let link = match program.attach_xdp(ifidx as i32) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        debug!("Failed to attach xdp: {}", e);
+                        return -1;
+                    }
+                };
+                debug!("xdp attached with link {:?}", link);
+                state.opened_links.push(link);
+                return 0;
+            }
+            s => {
+                debug!(
+                    "Unsupported special attach type: {}, will try auto attaching",
+                    s
+                );
+            }
         }
     }
     let link = match program.attach() {

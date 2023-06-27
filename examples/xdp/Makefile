@@ -66,4 +66,4 @@ $(APP).wasm: $(APP).c $(APP).skel.h
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
+	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm lo || if [ $$? = 124 ]; then exit 0; else exit $$?; fi

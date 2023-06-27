@@ -36,6 +36,7 @@ all: $(APP).wasm $(APP).bpf.o
 .PHONY: clean
 clean:
 	rm -rf *.o *.json *.wasm *.skel.h
+	rm target
 
 # Build BPF code
 %.bpf.o: %.bpf.c $(wildcard %.h) $(VMLINUX)
@@ -65,5 +66,10 @@ $(APP).wasm: $(APP).c $(APP).skel.h
 
 TEST_TIME := 3
 .PHONY: test
-test:
-	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
+target: target.c
+	clang target.c -o target -g -O
+test: target
+	./target & \
+	PID=$$! && \
+	echo "target PID=$$PID" && \
+	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then kill $$PID && exit 0; else kill $$PID && exit $$?; fi 
