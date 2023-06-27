@@ -220,7 +220,7 @@ static int attach_xdp(struct bpf_program* prog, const char* argv) {
 int wasm_bpf_program::attach_bpf_program(const char* name,
                                          const char* attach_target) {
     struct bpf_link* link;
-    if (!attach_target) {
+    if (!attach_target || strcmp(attach_target, "") == 0) {
         // auto attach
         link = bpf_program__attach(
             bpf_object__find_program_by_name(obj.get(), name));
