@@ -80,7 +80,7 @@ pub fn wasm_attach_bpf_program(
                 if ifidx == 0 {
                     let e = errno::errno();
                     debug!("Failed to get if idx, err={}, errno={}", e, e.0);
-                    return e.0;
+                    return -e.0;
                 }
                 let link = match program.attach_xdp(ifidx as i32) {
                     Ok(v) => v,
