@@ -36,7 +36,7 @@ impl CallerUtils for Caller<'_, AppState> {
     }
 
     fn get_indirect_call_table(&mut self) -> anyhow::Result<Table> {
-        let table = self.get_export(INDIRECT_TABLE_NAME).with_context(||anyhow!("No export named `{}` found. And `--export-table` to you linker to emit such export.",INDIRECT_TABLE_NAME))?;
+        let table = self.get_export(INDIRECT_TABLE_NAME).with_context(||anyhow!("No export named `{}` found. Add `--export-table` to you linker to emit such export.",INDIRECT_TABLE_NAME))?;
         let table = table.into_table().with_context(|| {
             anyhow!(
                 "The type of export named `{}` is not table!",
