@@ -131,8 +131,8 @@ We have proposed a new WASI issue [wasi-bpf](https://github.com/WebAssembly/WASI
 
 We have two types of runtime samples:
 
-- A C/C++ runtime example, which is a minimal runtime based on WAMR. see [runtime/cpp](../runtime/cpp) for more details.
-- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/wasm-bpf-rs](../runtime/wasm-bpf-rs) for more details.
+- A C/C++ runtime example, which is a minimal runtime based on WAMR. see [runtime/cpp](runtime/cpp) for more details.
+- A Rust runtime example, which is a more complex runtime based on Wasmtime. see [runtime/wasm-bpf-rs](runtime/wasm-bpf-rs) for more details.
 
 The runtime can be built as a library or a standalone executable. see [docs/build.md](docs/build.md) to build the runtimes.
 
