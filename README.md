@@ -14,13 +14,13 @@
 
 # Quick start guides
 
-⌨️ [Introduction](#introduction) to wasm-bpf \
+⌨️ [Introduction](#introduction) to wasm-bpf, and also [Our talks in Kubecon](https://kccncna2023.sched.com/event/1R2uf) \
 📦 [Features](#features) \
 🚀 [Running](#running-a-standalone-wasm-ebpf-program) a standalone Wasm program from CLI or Docker \
 🔌 Embed a Wasm-eBPF function in your [Rust program](#embed-a-wasm-ebpf-function-in-your-program) or [C/C++ program](#build-the-runtime)  \
 🔨 [Examples](#examples) covering the use cases from `tracing`, `networking` to `security` \
 📚 [How it works](#how-it-works) \
-🤖 [Build](#build-the-runtime) the runtime
+🤖 [Build](#build-the-runtime) the runtime, or as [a plugin for WasmEdge](https://github.com/WasmEdge/WasmEdge/tree/master/plugins/wasm_bpf)
 
 📚 **[Check out our more documentations](https://docs.eunomia.dev/)**
 
