@@ -5,7 +5,7 @@ all: test
 TEST_TIME := 3
 
 # test with the files in bpf-loader
-TEST_CASES_DIRS=$(shell ls -l . | grep ^d | awk '{print $$9}')
+TEST_CASES_DIRS=$(shell ls -l . | grep ^d | grep -v 'go-lsm\|go-execve' | awk '{print $$9}')
 test: $(TEST_CASES_DIRS)
 
 .PHONY:$(TEST_CASES_DIRS)

@@ -2,6 +2,7 @@
 
 # 📦 Wasm-bpf: Wasm library and toolchain for eBPF
 
+[![Test Rntime](https://github.com/eunomia-bpf/wasm-bpf/actions/workflows/rust.yml/badge.svg)](https://github.com/eunomia-bpf/wasm-bpf/actions/workflows/rust.yml)
 [![codecov](https://codecov.io/gh/eunomia-bpf/wasm-bpf/branch/main/graph/badge.svg?token=6TKN4WU99U)](https://codecov.io/gh/eunomia-bpf/wasm-bpf)
 [![CodeFactor](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf/badge)](https://www.codefactor.io/repository/github/eunomia-bpf/wasm-bpf)
 [![DeepSource](https://deepsource.io/gh/eunomia-bpf/wasm-bpf.svg/?label=active+issues&show_trend=true&token=rcSI3J1-gpwLIgZWtKZC-N6C)](https://deepsource.io/gh/eunomia-bpf/wasm-bpf/?ref=repository-badge)
