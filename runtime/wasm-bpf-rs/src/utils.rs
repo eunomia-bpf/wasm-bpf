@@ -22,6 +22,7 @@ pub trait CallerUtils {
     fn read_wasm_string_slice_include_zero(&mut self, offset: usize) -> anyhow::Result<&[u8]>;
     fn read_zero_terminated_str(&mut self, offset: usize) -> anyhow::Result<&str>;
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8;
+    unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8;
 }
 
 impl CallerUtils for Caller<'_, AppState> {
@@ -105,6 +106,11 @@ impl CallerUtils for Caller<'_, AppState> {
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8 {
         let memory = self.get_memory().expect("Expected memory exported");
         memory.data_ptr(self).add(offset)
+    }
+
+    unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8 {
+        let memory = self.get_memory().expect("Expected memory exported");
+        memory.data_ptr(self).add(offset) as *mut u8
     }
 }
 
