@@ -24,13 +24,15 @@ pub trait CallerUtils {
     /// # Safety
     /// Returns a raw const pointer to the memory at the given offset.
     /// The caller must ensure the offset is within valid memory bounds.
+    /// Violating this results in undefined behavior.
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8;
     /// # Safety
     /// Returns a raw mutable pointer to the memory at the given offset.
     /// The caller must ensure:
     /// - The offset is within valid memory bounds
-    /// - The memory at the given offset is legitimately mutable
+    /// - The memory at the given offset is legitimately mutable (WebAssembly linear memory is mutable)
     /// - No immutable references to this memory exist during the lifetime of this pointer
+    /// Violating these requirements results in undefined behavior.
     unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8;
 }
 
