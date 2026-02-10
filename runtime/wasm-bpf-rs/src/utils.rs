@@ -21,7 +21,16 @@ pub trait CallerUtils {
     // Terminated zero will be included
     fn read_wasm_string_slice_include_zero(&mut self, offset: usize) -> anyhow::Result<&[u8]>;
     fn read_zero_terminated_str(&mut self, offset: usize) -> anyhow::Result<&str>;
+    /// # Safety
+    /// Returns a raw const pointer to the memory at the given offset.
+    /// The caller must ensure the offset is within valid memory bounds.
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8;
+    /// # Safety
+    /// Returns a raw mutable pointer to the memory at the given offset.
+    /// The caller must ensure:
+    /// - The offset is within valid memory bounds
+    /// - The memory at the given offset is legitimately mutable
+    /// - No immutable references to this memory exist during the lifetime of this pointer
     unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8;
 }
 
