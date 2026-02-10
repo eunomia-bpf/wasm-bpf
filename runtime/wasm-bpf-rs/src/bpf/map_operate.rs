@@ -57,7 +57,7 @@ pub fn wasm_bpf_map_operate(
                 bpf_map_get_next_key(
                     fd,
                     caller.raw_pointer_at_unchecked(key as usize) as *const _,
-                    caller.raw_pointer_at_unchecked(next_key as usize) as *mut _,
+                    caller.raw_mut_pointer_at_unchecked(next_key as usize) as *mut _,
                 )
             };
             if ret_val != 0 {
@@ -73,7 +73,7 @@ pub fn wasm_bpf_map_operate(
                 bpf_map_lookup_elem_flags(
                     fd,
                     caller.raw_pointer_at_unchecked(key as usize) as *const _,
-                    caller.raw_pointer_at_unchecked(value as usize) as *mut _,
+                    caller.raw_mut_pointer_at_unchecked(value as usize) as *mut _,
                     flags,
                 )
             };
@@ -90,7 +90,7 @@ pub fn wasm_bpf_map_operate(
                 bpf_map_update_elem(
                     fd,
                     caller.raw_pointer_at_unchecked(key as usize) as *const _,
-                    caller.raw_pointer_at_unchecked(value as usize) as *mut _,
+                    caller.raw_pointer_at_unchecked(value as usize) as *const _,
                     flags,
                 )
             };
