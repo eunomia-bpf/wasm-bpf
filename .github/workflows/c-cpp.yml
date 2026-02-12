@@ -25,12 +25,12 @@ jobs:
       run: make -C runtime/cpp build-lib
     - name: examples with cpp runtime
       run: IMPL=cpp  make -C examples
-    - name: make test
-      run: |
-        make clean
-        make -C runtime/cpp test
     - name: Upload build result
       uses: actions/upload-artifact@v4
       with:
         name: wasm-bpf-build
-        path: "wasm-bpf"
+        path: "runtime/cpp/build/bin/Release/wasm-bpf"
+    - name: make test
+      run: |
+        make clean
+        make -C runtime/cpp test
