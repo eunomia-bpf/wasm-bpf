@@ -203,7 +203,8 @@ static int attach_cgroup(struct bpf_program* prog, const char* path) {
 
 static int attach_xdp(struct bpf_program* prog, const char* argv) {
     unsigned int ifindex = if_nametoindex(argv);
-    if (ifindex < 1 || ifindex > (unsigned int)std::numeric_limits<int>::max()) {
+    if (ifindex < 1 ||
+        ifindex > (unsigned int)std::numeric_limits<int>::max()) {
         printf("Failed to find network interface %s\n", argv);
         return -1;
     }
