@@ -233,6 +233,7 @@ set (WAMR_BUILD_INTERP 1)
 set (WAMR_BUILD_AOT 1)
 set (WAMR_BUILD_JIT 0)
 set (WAMR_BUILD_LIBC_BUILTIN 1)
+set (WAMR_BUILD_REF_TYPES 1)
 set (WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm-micro-runtime)
 
 if (NOT MSVC)
@@ -280,6 +281,12 @@ endif ()
 include (${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
 add_library(vmlib ${WAMR_RUNTIME_LIB_SOURCE})
 include (${SHARED_DIR}/utils/uncommon/shared_uncommon.cmake)
+
+if(${PROJECT_NAME}_ENABLE_ASAN)
+  # Sanitizing the vendored WAMR interpreter makes its native stack checks trip
+  # in unit tests before guest code runs. Keep ASAN on our runtime/test code.
+  target_compile_options(vmlib PRIVATE -fno-sanitize=address)
+endif()
 
 set_target_properties (${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

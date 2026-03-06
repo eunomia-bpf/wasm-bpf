@@ -48,7 +48,7 @@ $(BPFTOOL):
 
 # generate c skeleton
 %.skel.h: %.bpf.o $(BPFTOOL)
-	$(BPFTOOL) gen skeleton -j $< > $@
+	$(BPFTOOL) -w gen skeleton $< > $@
 
 # generate wasm bpf header for pass struct event
 $(APP).wasm.h: $(APP).bpf.o $(BPFTOOL)

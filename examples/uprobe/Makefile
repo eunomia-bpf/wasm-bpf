@@ -36,7 +36,7 @@ all: $(APP).wasm $(APP).bpf.o
 .PHONY: clean
 clean:
 	rm -rf *.o *.json *.wasm *.skel.h
-	rm target
+	rm -f target
 
 # Build BPF code
 %.bpf.o: %.bpf.c $(wildcard %.h) $(VMLINUX)
@@ -49,7 +49,7 @@ $(BPFTOOL):
 
 # generate c skeleton
 %.skel.h: %.bpf.o $(BPFTOOL)
-	$(BPFTOOL) gen skeleton -j $< > $@
+	$(BPFTOOL) -w gen skeleton $< > $@
 
 # generate wasm bpf header for pass struct event
 $(APP).wasm.h: $(APP).bpf.o $(BPFTOOL)

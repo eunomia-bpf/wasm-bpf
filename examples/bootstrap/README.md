@@ -77,7 +77,7 @@ This would invoke the following steps:
 - generate the C header file from the BPF program:
 
   ```sh
-  ../../third_party/bpftool/src/bpftool gen skeleton -j bootstrap.bpf.o > bootstrap.skel.h
+  ../../third_party/bpftool/src/bpftool -w gen skeleton bootstrap.bpf.o > bootstrap.skel.h
   ```
 
   The C skel would include a skeleton for the BPF program to operate the BPF object, and control the life cycle of the BPF program, for example:

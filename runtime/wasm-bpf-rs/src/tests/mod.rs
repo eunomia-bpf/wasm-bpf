@@ -166,9 +166,12 @@ fn test_pause_and_resume_wasm_program() {
     handle.as_mut().unwrap().resume().unwrap();
     let tick_count_2 = count_tick();
     println!("Tick count 2: {}", tick_count_2);
-    // Tick count should not differ than 1.
-    // if the program was paused at 3.9999999s. And the resume function will take 0.0001s, we may got another tick.
-    assert!((tick_count_1 - tick_count_2).abs() < 1);
+    // Allow one in-flight tick while pause propagates through the runtime.
+    let paused_growth = tick_count_2 - tick_count_1;
+    assert!(
+        (0..=1).contains(&paused_growth),
+        "pause should stop ticks after at most one extra callback, got {paused_growth}"
+    );
     thread::sleep(Duration::from_secs(3));
     let tick_count_3 = count_tick();
     println!("Tick count 3: {}", tick_count_3);

@@ -1,3 +1,5 @@
+export PATH := $(HOME)/.cargo/bin:$(PATH)
+
 generate: install-deps import.wit
 	clang -target bpf -g event-def.c -c -o event.def.o
 	cargo install btf2wit

@@ -14,7 +14,7 @@ make
 
 ### Create a Rust project 
 ```console
-rustup target add wasm32-wasi
+rustup target add wasm32-wasip1
 cargo new rust-helloworld
 ```
 
@@ -186,14 +186,14 @@ extern "C" fn handle_event(_ctx: u32, data: u32, _data_sz: u32) {
 
 Compile and run with cargo：
 ```console
-$ cargo build --target wasm32-wasi
+$ cargo build --target wasm32-wasip1
 ```
 - Note: this will produce a wasm binary that can be used to run on the current wasm-bpf (using wasm-micro-runtime, which will put all imported functions at module `$root`) 
-- We are trying `wasmtime`, use `cargo build --target wasm32-wasi --features wasmtime` to produce a binary that can be used under `wasmtime`, together with `wit-bindgen` (See [https://github.com/eunomia-bpf/wasmtime-test](https://github.com/eunomia-bpf/wasmtime-test) for details)
+- We are trying `wasmtime`, use `cargo build --target wasm32-wasip1 --features wasmtime` to produce a binary that can be used under `wasmtime`, together with `wit-bindgen` (See [https://github.com/eunomia-bpf/wasmtime-test](https://github.com/eunomia-bpf/wasmtime-test) for details)
 
 
 ```console
-$ sudo wasm-bpf ./target/wasm32-wasi/debug/rust-helloworld.wasm
+$ sudo wasm-bpf ./target/wasm32-wasip1/debug/rust-helloworld.wasm
 TIME     EXEC  sh               180245  33666   /bin/sh
 TIME     EXEC  which            180246  180245  /usr/bin/which
 TIME     EXIT  which            180246  180245  [0] (1ms)
