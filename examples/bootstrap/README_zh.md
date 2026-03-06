@@ -63,7 +63,7 @@ make
 + 从BPF程序生成C头文件：
 
   ```console
-  ../../third_party/bpftool/src/bpftool gen skeleton -j bootstrap.bpf.o > bootstrap.skel.h
+  ../../third_party/bpftool/src/bpftool -w gen skeleton bootstrap.bpf.o > bootstrap.skel.h
   ```
 
   C skel包含一个 BPF 程序的skeleton，用于操作 BPF 对象，并控制 BPF 程序的生命周期，例如：

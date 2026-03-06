@@ -36,7 +36,7 @@ all: $(APP).wasm $(APP).bpf.o
 .PHONY: clean
 clean:
 	rm -rf *.o *.json *.wasm *.skel.h
-	cd go_wasm/ && rm -rf *.o *.json *.wasm *.skel.h
+	cd ../go-lsm/ && rm -rf *.o *.json *.wasm *.skel.h
 
 # Build BPF code
 %.bpf.o: %.bpf.c $(wildcard %.h) $(VMLINUX)
@@ -49,7 +49,7 @@ $(BPFTOOL):
 
 # generate c skeleton
 %.skel.h: %.bpf.o $(BPFTOOL)
-	$(BPFTOOL) gen skeleton -j $< > $@
+	$(BPFTOOL) -w gen skeleton $< > $@
 
 # generate wasm bpf header for pass struct event
 $(APP).wasm.h: $(APP).bpf.o $(BPFTOOL)
@@ -65,11 +65,15 @@ $(APP).wasm: $(APP).c $(APP).skel.h
 	$(WASI_CLANG) $(WASI_CFLAGS) -o $@ $< 
 
 $(APP)_go_wasm: $(APP).bpf.o
-	cp ./$(APP).bpf.o go-lsm 
-	cd go-lsm && $(TINYGO) build -target wasi -o $(APP).go.wasm  main.go
+	cp ./$(APP).bpf.o ../go-lsm 
+	cd ../go-lsm && $(TINYGO) build -target wasi -o $(APP).go.wasm  main.go
 	
 
 TEST_TIME := 3
 .PHONY: test
 test:
-	sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi
+	@if [ -r /sys/kernel/security/lsm ] && grep -qw bpf /sys/kernel/security/lsm; then \
+		sudo timeout -s 2 $(TEST_TIME) ../wasm-bpf $(APP).wasm || if [ $$? = 124 ]; then exit 0; else exit $$?; fi; \
+	else \
+		echo "Skipping lsm test: BPF LSM is not enabled"; \
+	fi

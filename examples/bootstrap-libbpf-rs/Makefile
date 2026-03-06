@@ -27,6 +27,7 @@ CLANG_BPF_SYS_INCLUDES = $(shell $(CLANG) -v -E - </dev/null 2>&1 \
 	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 
 APP = bootstrap
+WASI_RUST_TARGET ?= wasm32-wasip1
 
 .PHONY: all
 all: build
@@ -43,9 +44,9 @@ clean:
 
 .PHONY: build
 build: $(APP).bpf.o
-	rustup target add wasm32-wasi
-	cargo build --target wasm32-wasi --release
-	cp target/wasm32-wasi/release/bootstrap-libbpf-rs.wasm bootstrap-libbpf-rs.wasm
+	rustup target add $(WASI_RUST_TARGET)
+	cargo build --target $(WASI_RUST_TARGET) --release
+	cp target/$(WASI_RUST_TARGET)/release/bootstrap-libbpf-rs.wasm bootstrap-libbpf-rs.wasm
 
 TEST_TIME := 3
 .PHONY: test
