@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <limits>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -201,12 +202,12 @@ static int attach_cgroup(struct bpf_program* prog, const char* path) {
 }
 
 static int attach_xdp(struct bpf_program* prog, const char* argv) {
-    int ifindex = if_nametoindex(argv);
-    if (ifindex < 1) {
+    unsigned int ifindex = if_nametoindex(argv);
+    if (ifindex < 1 || ifindex > (unsigned int)std::numeric_limits<int>::max()) {
         printf("Failed to find network interface %s\n", argv);
         return -1;
     }
-    if (!bpf_program__attach_xdp(prog, ifindex)) {
+    if (!bpf_program__attach_xdp(prog, (int)ifindex)) {
         printf("Prog %s failed to attach network interface %s\n",
                bpf_program__name(prog), argv);
         return -1;
