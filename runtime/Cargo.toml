@@ -1,5 +1,6 @@
 [workspace]
 members = ["cli", "wasm-bpf-rs", "c-wrapper"]
+resolver = "2"
 
 [profile.release]
 opt-level = 3
