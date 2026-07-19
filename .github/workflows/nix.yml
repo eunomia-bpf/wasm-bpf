@@ -16,10 +16,6 @@ jobs:
           experimental-features = nix-command flakes
           access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
-    - uses: cachix/cachix-action@v12
-      with:
-        name: zeek
-
     - name: Nix Flake Show
       run: nix flake show --all-systems
 
