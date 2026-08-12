@@ -305,7 +305,10 @@ fn test_attach_cgroup_by_fd() {
         return;
     }
     let config = Config {
-        preopen_dirs: vec![(PathBuf::from(CGROUP_V2_ROOT), PathBuf::from(CGROUP_GUEST_MOUNT))],
+        preopen_dirs: vec![(
+            PathBuf::from(CGROUP_V2_ROOT),
+            PathBuf::from(CGROUP_GUEST_MOUNT),
+        )],
         ..Config::default()
     };
     test_example("cgroup_fd_attach.wasm", config, 3);
