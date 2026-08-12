@@ -11,7 +11,7 @@ pub mod handle;
 pub mod pipe;
 pub mod runner;
 
-use std::{sync::mpsc, thread::JoinHandle};
+use std::{path::PathBuf, sync::mpsc, thread::JoinHandle};
 
 use anyhow::anyhow;
 use handle::WasmProgramHandle;
@@ -34,6 +34,11 @@ pub struct Config {
     pub stdout: Box<dyn WasiFile>,
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
+    /// Host directories to preopen for the Wasm program, as `(host_path, guest_path)` pairs.
+    /// Each host directory is mounted into the guest's WASI filesystem at `guest_path`, and the
+    /// runtime keeps a host handle to it so the guest can later name it by its WASI file
+    /// descriptor. Empty by default, which leaves the guest without filesystem access.
+    pub preopen_dirs: Vec<(PathBuf, PathBuf)>,
 }
 
 impl Default for Config {
@@ -44,6 +49,7 @@ impl Default for Config {
             stdin: Box::new(stdio::stdin()),
             stdout: Box::new(stdio::stdout()),
             stderr: Box::new(stdio::stderr()),
+            preopen_dirs: Vec::new(),
         }
     }
 }
@@ -60,6 +66,7 @@ impl Config {
         self.wrapper_module_name = wrapper_module_name;
     }
     /// Create a new Config with custom values.
+    /// `preopen_dirs` starts empty; set the field directly to grant the guest directories.
     pub fn new(
         callback_export_name: String,
         wrapper_module_name: String,
@@ -73,6 +80,7 @@ impl Config {
             stdin,
             stdout,
             stderr,
+            preopen_dirs: Vec::new(),
         }
     }
 }

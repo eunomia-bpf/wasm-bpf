@@ -1,5 +1,7 @@
 //! This module contains tests for the runtime.
 //!
+mod fd;
+
 use flexi_logger::Logger;
 
 use crate::handle::WasmProgramHandle;
@@ -260,4 +262,51 @@ fn test_exit_code_of_interruped_wasm_program() {
         Config::default(),
         WaitPolicy::WaitUntilTimedOut(2),
     );
+}
+
+/// The cgroup hierarchy the fixture attaches to.
+const CGROUP_V2_ROOT: &str = "/sys/fs/cgroup";
+/// Where the guest is handed that hierarchy.
+const CGROUP_GUEST_MOUNT: &str = "/guestmnt";
+
+/// Why this machine cannot run the cgroup attach fixture, if it cannot.
+fn cgroup_fd_attach_skip_reason() -> Option<String> {
+    let fixture = get_test_file_path("cgroup_fd_attach.wasm");
+    if !fixture.exists() {
+        return Some(format!(
+            "{} is missing, build it with `make -C tests/cgroup_fd_attach` (needs wasi-sdk)",
+            fixture.display()
+        ));
+    }
+    // `cgroup.controllers` exists only on a cgroup v2 hierarchy, which is the only kind
+    // `attach_cgroup` takes.
+    let controllers = PathBuf::from(CGROUP_V2_ROOT).join("cgroup.controllers");
+    if !controllers.exists() {
+        return Some(format!("{CGROUP_V2_ROOT} is not a cgroup v2 hierarchy"));
+    }
+    None
+}
+
+/// Attaching by descriptor, end to end: the runtime preopens the host cgroup v2 root and the
+/// guest attaches a `sockops` program to the descriptor it was handed, without ever naming a
+/// path. The fixture also checks that a descriptor it never received, and one that is open but
+/// is not a preopened directory, are both refused.
+///
+/// Ignored by default, since `sockops` attach needs kernel support the CI kernel does not have
+/// (the same reason the test in `examples/sockops/Makefile` is commented out), and the fixture
+/// has to be built with wasi-sdk first. Run it with
+/// `cargo test -- --ignored test_attach_cgroup_by_fd` on a machine that has both. The invariants
+/// that hold everywhere live in `tests::fd`, which always runs.
+#[test]
+#[ignore = "needs sockops kernel support, cgroup v2, root, and a wasi-sdk built fixture"]
+fn test_attach_cgroup_by_fd() {
+    if let Some(reason) = cgroup_fd_attach_skip_reason() {
+        println!("skipping test_attach_cgroup_by_fd: {reason}");
+        return;
+    }
+    let config = Config {
+        preopen_dirs: vec![(PathBuf::from(CGROUP_V2_ROOT), PathBuf::from(CGROUP_GUEST_MOUNT))],
+        ..Config::default()
+    };
+    test_example("cgroup_fd_attach.wasm", config, 3);
 }
