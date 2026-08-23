@@ -43,7 +43,7 @@ fn state_with_preopens(dirs: &[PathBuf]) -> (AppState, Vec<u32>) {
     let mut guest_fds = preopen_dirs.keys().copied().collect::<Vec<_>>();
     guest_fds.sort_unstable();
     let (_operation_tx, operation_rx) = mpsc::channel::<ProgramOperation>();
-    let state = AppState::new(wasi, String::new(), operation_rx, preopen_dirs);
+    let state = AppState::new(wasi, String::default(), operation_rx, preopen_dirs);
     (state, guest_fds)
 }
 
