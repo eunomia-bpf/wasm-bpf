@@ -6,15 +6,18 @@
 //! Tests for the resolution of a guest file descriptor into a host one.
 //!
 //! Unlike the fixtures next to them, none of these load an eBPF program or need root, so they
-//! run wherever the crate is tested. They are where the invariant that a guest cannot name a
-//! host directory the runtime did not preopen is checked.
+//! run wherever the crate is tested. They are where two invariants are checked: a guest cannot
+//! name a host directory the runtime did not preopen, and a preopened directory grants the
+//! guest nothing but the descriptor it hands to attach.
 
-use std::fs::File;
+use std::collections::HashMap;
+use std::fs::{self, File};
 use std::os::fd::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use wasi_common::{dir::DirCaps, file::FileCaps};
+use wasmtime::{Engine, Instance, Linker, Module, Store};
 use wasmtime_wasi::{
     ambient_authority, sync::dir::Dir as WasiDirImpl, Dir as CapStdDir, WasiCtx, WasiCtxBuilder,
 };
@@ -67,6 +70,53 @@ fn dev_and_inode(fd: RawFd) -> (libc::dev_t, libc::ino_t) {
     assert_eq!(ret, 0, "fstat on fd {fd} failed");
     let stat = unsafe { stat.assume_init() };
     (stat.st_dev, stat.st_ino)
+}
+
+/// A guest that pokes at a directory descriptor with the raw WASI calls, compiled from WAT so
+/// the test needs no wasm toolchain. Each export takes the descriptor and returns the errno.
+/// The memory export is required: wiggle writes out-params through it.
+const CAPS_PROBE_WAT: &str = r#"
+(module
+  (import "wasi_snapshot_preview1" "path_open"
+    (func $path_open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_readdir"
+    (func $fd_readdir (param i32 i32 i32 i64 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_prestat_get"
+    (func $fd_prestat_get (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  ;; scratch: 0 prestat out, 8 opened-fd out, 16 readdir size out, 32 readdir buffer
+  (data (i32.const 512) "present.txt")
+  (data (i32.const 528) "made-by-guest.txt")
+  (func (export "prestat_get") (param $fd i32) (result i32)
+    (call $fd_prestat_get (local.get $fd) (i32.const 0)))
+  ;; open the file that exists beneath the preopen: oflags 0, rights fd_read
+  (func (export "try_open_existing") (param $fd i32) (result i32)
+    (call $path_open (local.get $fd) (i32.const 0) (i32.const 512) (i32.const 11)
+      (i32.const 0) (i64.const 2) (i64.const 0) (i32.const 0) (i32.const 8)))
+  ;; create a file that does not exist: oflags creat|excl, rights fd_write
+  (func (export "try_create") (param $fd i32) (result i32)
+    (call $path_open (local.get $fd) (i32.const 0) (i32.const 528) (i32.const 17)
+      (i32.const 5) (i64.const 64) (i64.const 0) (i32.const 0) (i32.const 8)))
+  (func (export "try_readdir") (param $fd i32) (result i32)
+    (call $fd_readdir (local.get $fd) (i32.const 32) (i32.const 256) (i64.const 0)
+      (i32.const 16))))
+"#;
+
+/// Instantiate [`CAPS_PROBE_WAT`] against `wasi`, wired up the way the runtime wires a module:
+/// the same linker registration and the same state type.
+fn instantiate_caps_probe(
+    wasi: WasiCtx,
+    preopen_dirs: HashMap<u32, File>,
+) -> (Store<AppState>, Instance) {
+    let engine = Engine::default();
+    let module = Module::new(&engine, CAPS_PROBE_WAT).unwrap();
+    let mut linker = Linker::new(&engine);
+    wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi).unwrap();
+    let (_operation_tx, operation_rx) = mpsc::channel::<ProgramOperation>();
+    let state = AppState::new(wasi, String::default(), operation_rx, preopen_dirs);
+    let mut store = Store::new(&engine, state);
+    let instance = linker.instantiate(&mut store, &module).unwrap();
+    (store, instance)
 }
 
 #[test]
@@ -142,4 +192,61 @@ fn test_resolve_answers_every_fd_without_panicking() {
             "fd {fd} resolved against expectation"
         );
     }
+}
+
+#[test]
+fn test_preopen_grants_no_filesystem_rights() {
+    let unique = format!("wasm-bpf-preopen-caps-{}", std::process::id());
+    let dir = std::env::temp_dir().join(unique);
+    if dir.exists() {
+        fs::remove_dir_all(&dir).unwrap();
+    }
+    fs::create_dir(&dir).unwrap();
+    fs::write(dir.join("present.txt"), b"present").unwrap();
+
+    // The preopen under test goes through preopen_config_dirs, the code the runtime runs.
+    let mut wasi = WasiCtxBuilder::new().build();
+    let preopen_dirs =
+        preopen_config_dirs(&mut wasi, &[(dir.clone(), PathBuf::from("/preopen0"))]).unwrap();
+    let guest_fd = *preopen_dirs.keys().next().unwrap();
+    let (mut store, instance) = instantiate_caps_probe(wasi, preopen_dirs);
+    let mut probe = |name: &str| {
+        instance
+            .get_typed_func::<i32, i32>(&mut store, name)
+            .unwrap()
+            .call(&mut store, guest_fd as i32)
+            .unwrap()
+    };
+
+    // Discovery works without any rights, so the guest still finds the preopen and can pass
+    // its number to attach. The denials assert only that the operation fails; the exact errno
+    // is a wasi-common detail not worth pinning.
+    assert_eq!(probe("prestat_get"), 0);
+    assert_ne!(probe("try_open_existing"), 0);
+    assert_ne!(probe("try_readdir"), 0);
+    assert_ne!(probe("try_create"), 0);
+    assert!(resolve_guest_fd_in_state(store.data(), guest_fd).is_ok());
+    assert!(
+        !dir.join("made-by-guest.txt").exists(),
+        "the denied create still made a file on the host"
+    );
+
+    // Control: the same probe against the same directory pushed with full capabilities, so the
+    // denials above come from the capability check and not from broken plumbing.
+    let mut control_wasi = WasiCtxBuilder::new().build();
+    let control_fd = push_unrecorded_dir(&mut control_wasi, &dir);
+    let (mut control_store, control_instance) =
+        instantiate_caps_probe(control_wasi, HashMap::new());
+    let mut control_probe = |name: &str| {
+        control_instance
+            .get_typed_func::<i32, i32>(&mut control_store, name)
+            .unwrap()
+            .call(&mut control_store, control_fd as i32)
+            .unwrap()
+    };
+    assert_eq!(control_probe("try_open_existing"), 0);
+    assert_eq!(control_probe("try_readdir"), 0);
+    assert_eq!(control_probe("try_create"), 0);
+
+    fs::remove_dir_all(&dir).ok();
 }

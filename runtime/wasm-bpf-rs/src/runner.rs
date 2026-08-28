@@ -166,11 +166,15 @@ pub(crate) fn preopen_config_dirs(
             .read(true)
             .open(host_path)
             .with_context(|| anyhow!("Failed to open host directory {:?}", host_path))?;
+        // The guest needs the preopen only as a token to hand to wasm_attach_bpf_program_fd.
+        // Preopen discovery (fd_prestat_get / fd_prestat_dir_name) is not gated on rights in
+        // wasi-common, so empty capabilities keep discovery working while path_open, fd_readdir,
+        // and any create or write beneath the directory fail.
         let guest_fd = wasi
             .push_dir(
                 Box::new(WasiDirImpl::from_cap_std(cap_dir)),
-                DirCaps::all(),
-                FileCaps::all(),
+                DirCaps::empty(),
+                FileCaps::empty(),
                 guest_path.clone(),
             )
             .with_context(|| anyhow!("Failed to preopen {:?} at {:?}", host_path, guest_path))?;
