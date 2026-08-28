@@ -201,7 +201,7 @@ fn test_preopen_grants_no_filesystem_rights() {
     if dir.exists() {
         fs::remove_dir_all(&dir).unwrap();
     }
-    fs::create_dir(&dir).unwrap();
+    fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("present.txt"), b"present").unwrap();
 
     // The preopen under test goes through preopen_config_dirs, the code the runtime runs.
