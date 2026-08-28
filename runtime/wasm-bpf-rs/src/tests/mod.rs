@@ -305,12 +305,10 @@ fn test_attach_cgroup_by_fd() {
         println!("skipping test_attach_cgroup_by_fd: {reason}");
         return;
     }
-    let config = Config {
-        preopen_dirs: vec![(
-            PathBuf::from(CGROUP_V2_ROOT),
-            PathBuf::from(CGROUP_GUEST_MOUNT),
-        )],
-        ..Config::default()
-    };
+    let mut config = Config::default();
+    config.add_preopen_dir(
+        PathBuf::from(CGROUP_V2_ROOT),
+        PathBuf::from(CGROUP_GUEST_MOUNT),
+    );
     test_example("cgroup_fd_attach.wasm", config, 3);
 }

@@ -23,6 +23,12 @@ const MAIN_MODULE_NAME: &str = "main";
 const POLL_WRAPPER_FUNCTION_NAME: &str = "wasm_bpf_buffer_poll";
 
 /// The configuration for the Wasm module.
+///
+/// `Config` has a private field, so it is built with [`Config::new`] or [`Config::default`]
+/// and adjusted through its methods; code that built it with a struct literal, whether
+/// complete or filled out with `..Default::default()`, has to switch. The private field never
+/// shipped in a release: relative to the published 0.3.3, adding any field breaks complete
+/// struct literals whether it is public or private.
 pub struct Config {
     /// Callback export name for go sdk, for example "go-callback"
     pub callback_export_name: String,
@@ -35,10 +41,9 @@ pub struct Config {
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
     /// Host directories to preopen for the Wasm program, as `(host_path, guest_path)` pairs.
-    /// Each host directory is mounted into the guest's WASI filesystem at `guest_path`, and the
-    /// runtime keeps a host handle to it so the guest can later name it by its WASI file
-    /// descriptor. Empty by default, which leaves the guest without filesystem access.
-    pub preopen_dirs: Vec<(PathBuf, PathBuf)>,
+    /// Filled through [`Config::add_preopen_dir`]; empty by default, which leaves the guest
+    /// without filesystem access.
+    preopen_dirs: Vec<(PathBuf, PathBuf)>,
 }
 
 impl Default for Config {
@@ -65,8 +70,15 @@ impl Config {
         self.callback_export_name = callback_export_name;
         self.wrapper_module_name = wrapper_module_name;
     }
+    /// Preopen a host directory for the Wasm program.
+    /// The guest sees `host_path` preopened at `guest_path` in its WASI filesystem and gets a
+    /// descriptor it can pass to `wasm_attach_bpf_program_fd` to name the directory as an
+    /// attach target. Nothing is preopened by default.
+    pub fn add_preopen_dir(&mut self, host_path: PathBuf, guest_path: PathBuf) {
+        self.preopen_dirs.push((host_path, guest_path));
+    }
     /// Create a new Config with custom values.
-    /// `preopen_dirs` starts empty; set the field directly to grant the guest directories.
+    /// `preopen_dirs` starts empty; use [`Config::add_preopen_dir`] to grant the guest directories.
     pub fn new(
         callback_export_name: String,
         wrapper_module_name: String,
