@@ -1,5 +1,6 @@
 //! This module contains tests for the runtime.
 //!
+mod attach;
 mod fd;
 
 use flexi_logger::Logger;

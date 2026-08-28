@@ -120,14 +120,38 @@ pub fn wasm_attach_bpf_program(
     0
 }
 
+/// What [`wasm_attach_bpf_program_fd`] does for a program. The decision is made from the
+/// section name before any descriptor is resolved.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FdAttachAction {
+    /// Resolve the target descriptor and attach to the cgroup it names.
+    AttachCgroupByFd,
+    /// Refuse the attach: xdp targets an interface, not a file.
+    RejectXdp,
+    /// Attach without a target. A descriptor passed to such a section is not consulted.
+    AutoAttach,
+}
+
+/// Pick the [`FdAttachAction`] for a section. Runs before any descriptor is resolved, so it
+/// sees only whether a target was passed, never what it resolves to.
+pub(crate) fn fd_attach_action(section: &str, has_target_fd: bool) -> FdAttachAction {
+    match (section, has_target_fd) {
+        ("sockops", true) => FdAttachAction::AttachCgroupByFd,
+        ("xdp", _) => FdAttachAction::RejectXdp,
+        _ => FdAttachAction::AutoAttach,
+    }
+}
+
 /// attach a bpf program to a hook point named by a file descriptor
 ///
 /// This is the file-backed half of the attach ABI: `sockops` takes the descriptor of the cgroup
 /// directory, which the guest must already hold and which resolves to the host descriptor the
 /// runtime recorded when it preopened that directory, so no path from the guest is opened here.
-/// A negative `target_fd` means no target and auto-attaches, as does any section without special
-/// handling. An interface-backed target (`xdp`) is named by an interface rather than a file and
-/// is rejected; it stays on `wasm_attach_bpf_program`.
+/// The section decides what happens before any descriptor is resolved: only a `sockops` program
+/// with a target resolves one. A negative `target_fd` means no target and auto-attaches, as does
+/// any section without special handling; a descriptor passed to such a section is ignored. An
+/// interface-backed target (`xdp`) is named by an interface rather than a file and is rejected
+/// without touching the descriptor; it stays on `wasm_attach_bpf_program`.
 pub fn wasm_attach_bpf_program_fd(
     mut caller: CallerType,
     program: BpfObjectType,
@@ -136,71 +160,71 @@ pub fn wasm_attach_bpf_program_fd(
 ) -> i32 {
     debug!("wasm attach bpf program by fd");
     let name_str = ensure_c_str!(caller, name);
-    // Resolving reads the WASI descriptor table out of the state, so it has to finish before the
-    // bpf object is borrowed mutably out of that same state.
-    let host_fd = if target_fd < 0 {
-        None
-    } else {
-        match resolve_guest_fd(&mut caller, target_fd as u32) {
-            Ok(v) => Some(v),
-            Err(err) => {
-                debug!("Failed to resolve attach fd {}: {}", target_fd, err);
-                return -1;
-            }
-        }
+    // Clone the object handle out of the state so no state borrow is held across the match:
+    // the sockops arm resolves the descriptor, and resolving reads the state again.
+    let object_rc = {
+        let state = caller.data_mut();
+        let object = ensure_program_mut_by_state!(state, program);
+        object.get_object_rc()
     };
-    let state = caller.data_mut();
-    let object = ensure_program_mut_by_state!(state, program);
-    let mut object_guard = object.get_object_mut();
-    let program = match object_guard.prog_mut(&name_str) {
+    let mut object_guard = object_rc.borrow_mut();
+    let prog = match object_guard.prog_mut(&name_str) {
         Some(v) => v,
         None => {
             debug!("No program named `{}` found", name_str);
             return -1;
         }
     };
-    match program.section() {
-        "sockops" => {
-            if let Some(cgroup_fd) = host_fd {
-                let link = match program.attach_cgroup(cgroup_fd) {
-                    Ok(v) => v,
-                    Err(err) => {
-                        debug!("Failed to attach program to cgroup: {}", err);
-                        return -1;
-                    }
-                };
-                debug!("sockops attached with link {:?}", link);
-                state.opened_links.push(link);
-                return 0;
-            }
-            debug!(
-                "No attach target given for sockops program `{}`, will try auto attaching",
-                name_str
-            );
-        }
-        "xdp" => {
+    match fd_attach_action(prog.section(), target_fd >= 0) {
+        FdAttachAction::RejectXdp => {
             debug!(
                 "`{}` is an xdp program; xdp attaches to a network interface rather than to a \
                  file, so it has no descriptor to resolve. Use wasm_attach_bpf_program with the \
                  interface name instead",
                 name_str
             );
-            return -1;
+            -1
         }
-        s => {
-            debug!(
-                "Unsupported special attach type: {}, will try auto attaching",
-                s
-            );
+        FdAttachAction::AttachCgroupByFd => {
+            let host_fd = match resolve_guest_fd(&mut caller, target_fd as u32) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to resolve attach fd {}: {}", target_fd, err);
+                    return -1;
+                }
+            };
+            let link = match prog.attach_cgroup(host_fd) {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to attach program to cgroup: {}", err);
+                    return -1;
+                }
+            };
+            debug!("sockops attached with link {:?}", link);
+            caller.data_mut().opened_links.push(link);
+            0
+        }
+        FdAttachAction::AutoAttach => {
+            if prog.section() == "sockops" {
+                debug!(
+                    "No attach target given for sockops program `{}`, will try auto attaching",
+                    name_str
+                );
+            } else {
+                debug!(
+                    "Unsupported special attach type: {}, will try auto attaching",
+                    prog.section()
+                );
+            }
+            let link = match prog.attach() {
+                Ok(v) => v,
+                Err(err) => {
+                    debug!("Failed to attach link: {}", err);
+                    return -1;
+                }
+            };
+            caller.data_mut().opened_links.push(link);
+            0
         }
     }
-    let link = match program.attach() {
-        Ok(v) => v,
-        Err(err) => {
-            debug!("Failed to attach link: {}", err);
-            return -1;
-        }
-    };
-    state.opened_links.push(link);
-    0
 }
