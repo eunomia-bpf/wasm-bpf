@@ -4,3 +4,4 @@ wasm-bpf
 coverage
 lcov.info
 rust-clippy-results.sarif
+tests/cgroup_fd_attach.wasm

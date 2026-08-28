@@ -33,7 +33,10 @@ struct CommandArgs {
         long = "dir",
         value_name = "HOST:GUEST",
         value_parser = parse_preopen,
-        help = "Preopen a host directory for the Wasm program at a guest path. May be given more than once"
+        help = "Preopen a host directory at a guest path, as an attach target the guest can \
+                pass to wasm_attach_bpf_program_fd; it cannot open, list, or change anything \
+                beneath it. The first colon splits host from guest, so a host path cannot \
+                contain a colon. May be given more than once"
     )]
     dir: Vec<(PathBuf, PathBuf)>,
     #[arg(help = "Arguments that will be passed to the Wasm program")]
@@ -110,6 +113,28 @@ mod tests {
                 (PathBuf::from("/host/a"), PathBuf::from("/guest/a")),
                 (PathBuf::from("/host/b"), PathBuf::from("/guest/b")),
             ]
+        );
+    }
+
+    #[test]
+    fn test_dir_flag_stops_at_double_dash() {
+        let args = CommandArgs::try_parse_from([
+            "wasm-bpf",
+            "--dir",
+            "/host/a:/guest/a",
+            "module.wasm",
+            "--",
+            "--dir",
+            "a:b",
+        ])
+        .unwrap();
+        assert_eq!(
+            args.dir,
+            vec![(PathBuf::from("/host/a"), PathBuf::from("/guest/a"))]
+        );
+        assert_eq!(
+            args.args_to_wasm,
+            vec!["--dir".to_string(), "a:b".to_string()]
         );
     }
 }

@@ -41,8 +41,8 @@ pub struct Config {
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
     /// Host directories to preopen for the Wasm program, as `(host_path, guest_path)` pairs.
-    /// Filled through [`Config::add_preopen_dir`]; empty by default, which leaves the guest
-    /// without filesystem access.
+    /// A preopen is an attach-target token, not filesystem access; see
+    /// [`Config::add_preopen_dir`]. Empty by default.
     preopen_dirs: Vec<(PathBuf, PathBuf)>,
 }
 
@@ -71,14 +71,15 @@ impl Config {
         self.wrapper_module_name = wrapper_module_name;
     }
     /// Preopen a host directory for the Wasm program.
-    /// The guest sees `host_path` preopened at `guest_path` in its WASI filesystem and gets a
-    /// descriptor it can pass to `wasm_attach_bpf_program_fd` to name the directory as an
-    /// attach target. Nothing is preopened by default.
+    /// The guest can discover the preopen at `guest_path` and pass its descriptor to
+    /// `wasm_attach_bpf_program_fd` as an attach target. That is all a preopen grants: the
+    /// guest cannot open, list, or change anything beneath it. Nothing is preopened by
+    /// default.
     pub fn add_preopen_dir(&mut self, host_path: PathBuf, guest_path: PathBuf) {
         self.preopen_dirs.push((host_path, guest_path));
     }
     /// Create a new Config with custom values.
-    /// `preopen_dirs` starts empty; use [`Config::add_preopen_dir`] to grant the guest directories.
+    /// `preopen_dirs` starts empty; use [`Config::add_preopen_dir`] to preopen attach targets.
     pub fn new(
         callback_export_name: String,
         wrapper_module_name: String,

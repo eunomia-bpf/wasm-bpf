@@ -1,4 +1,3 @@
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -76,16 +75,9 @@ int main(void) {
         printf("Attach accepted stdout as a target\n");
         return 1;
     }
-    // Neither is a directory the guest opened for itself, even though it is a live handle onto
-    // the very cgroup that is about to be attached to.
-    int own_fd = open(CGROUP_MOUNT_POINT, O_RDONLY | O_DIRECTORY);
-    if (own_fd >= 0) {
-        if (wasm_attach_bpf_program_fd(obj, SOCKOPS_PROG_NAME, own_fd) == 0) {
-            printf("Attach accepted a directory the guest opened itself\n");
-            return 1;
-        }
-        close(own_fd);
-    }
+    // A directory the guest opened itself cannot be tried here: under a rights-free preopen
+    // the guest cannot open a directory at all. Refusal of a descriptor the host did not
+    // preopen is covered by the unit tests in src/tests/fd.rs, which build one directly.
 
     if (wasm_attach_bpf_program_fd(obj, SOCKOPS_PROG_NAME, cgroup_fd) != 0) {
         printf("Failed to attach sockops to the preopened cgroup\n");
