@@ -11,7 +11,7 @@ pub mod handle;
 pub mod pipe;
 pub mod runner;
 
-use std::{sync::mpsc, thread::JoinHandle};
+use std::{path::PathBuf, sync::mpsc, thread::JoinHandle};
 
 use anyhow::anyhow;
 use handle::WasmProgramHandle;
@@ -23,6 +23,12 @@ const MAIN_MODULE_NAME: &str = "main";
 const POLL_WRAPPER_FUNCTION_NAME: &str = "wasm_bpf_buffer_poll";
 
 /// The configuration for the Wasm module.
+///
+/// `Config` has a private field, so it is built with [`Config::new`] or [`Config::default`]
+/// and adjusted through its methods; code that built it with a struct literal, whether
+/// complete or filled out with `..Default::default()`, has to switch. The private field never
+/// shipped in a release: relative to the published 0.3.3, adding any field breaks complete
+/// struct literals whether it is public or private.
 pub struct Config {
     /// Callback export name for go sdk, for example "go-callback"
     pub callback_export_name: String,
@@ -34,6 +40,10 @@ pub struct Config {
     pub stdout: Box<dyn WasiFile>,
     /// stderr file for sending error to the host
     pub stderr: Box<dyn WasiFile>,
+    /// Host directories to preopen for the Wasm program, as `(host_path, guest_path)` pairs.
+    /// A preopen is an attach-target token, not filesystem access; see
+    /// [`Config::add_preopen_dir`]. Empty by default.
+    preopen_dirs: Vec<(PathBuf, PathBuf)>,
 }
 
 impl Default for Config {
@@ -44,6 +54,7 @@ impl Default for Config {
             stdin: Box::new(stdio::stdin()),
             stdout: Box::new(stdio::stdout()),
             stderr: Box::new(stdio::stderr()),
+            preopen_dirs: Vec::new(),
         }
     }
 }
@@ -59,7 +70,16 @@ impl Config {
         self.callback_export_name = callback_export_name;
         self.wrapper_module_name = wrapper_module_name;
     }
+    /// Preopen a host directory for the Wasm program.
+    /// The guest can discover the preopen at `guest_path` and pass its descriptor to
+    /// `wasm_attach_bpf_program_fd` as an attach target. That is all a preopen grants: the
+    /// guest cannot open, list, or change anything beneath it. Nothing is preopened by
+    /// default.
+    pub fn add_preopen_dir(&mut self, host_path: PathBuf, guest_path: PathBuf) {
+        self.preopen_dirs.push((host_path, guest_path));
+    }
     /// Create a new Config with custom values.
+    /// `preopen_dirs` starts empty; use [`Config::add_preopen_dir`] to preopen attach targets.
     pub fn new(
         callback_export_name: String,
         wrapper_module_name: String,
@@ -73,6 +93,7 @@ impl Config {
             stdin,
             stdout,
             stderr,
+            preopen_dirs: Vec::new(),
         }
     }
 }

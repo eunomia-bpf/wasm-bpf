@@ -1,12 +1,19 @@
+use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::path::PathBuf;
 use std::sync::mpsc;
 
 use anyhow::{anyhow, Context};
-use wasi_common::I32Exit;
+use wasi_common::{dir::DirCaps, file::FileCaps, I32Exit};
 use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
-use wasmtime_wasi::WasiCtxBuilder;
+// `Dir` and `sync::dir::Dir` are distinct types with the same name: the former is
+// `cap_std::fs::Dir`, the latter the `WasiDir` implementation that wraps it.
+use wasmtime_wasi::{
+    ambient_authority, sync::dir::Dir as WasiDirImpl, Dir as CapStdDir, WasiCtx, WasiCtxBuilder,
+};
 
 use crate::add_bind_function_with_module;
-use crate::bpf::attach::wasm_attach_bpf_program;
+use crate::bpf::attach::{wasm_attach_bpf_program, wasm_attach_bpf_program_fd};
 use crate::bpf::close::wasm_close_bpf_object;
 use crate::bpf::fd_by_name::wasm_bpf_map_fd_by_name;
 use crate::bpf::load::wasm_load_bpf_object;
@@ -54,17 +61,18 @@ impl WasmBpfModuleRunner {
         wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi)
             .with_context(|| anyhow!("Failed to add wasmtime_wasi to linker"))?;
 
-        let wasi = WasiCtxBuilder::new()
+        let mut wasi = WasiCtxBuilder::new()
             .stdin(config.stdin)
             .stdout(config.stdout)
             .stderr(config.stderr)
             .args(args)
             .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
             .build();
+        let preopen_dirs = preopen_config_dirs(&mut wasi, &config.preopen_dirs)?;
         let (tx, rx) = mpsc::channel::<ProgramOperation>();
         let mut store = Store::new(
             &engine,
-            AppState::new(wasi, config.callback_export_name.clone(), rx),
+            AppState::new(wasi, config.callback_export_name.clone(), rx, preopen_dirs),
         );
 
         store.set_epoch_deadline(1);
@@ -80,6 +88,7 @@ impl WasmBpfModuleRunner {
         add_bind_function!(linker, wasm_load_bpf_object)?;
         add_bind_function!(linker, wasm_close_bpf_object)?;
         add_bind_function!(linker, wasm_attach_bpf_program)?;
+        add_bind_function!(linker, wasm_attach_bpf_program_fd)?;
         add_bind_function!(linker, wasm_bpf_buffer_poll)?;
         add_bind_function!(linker, wasm_bpf_map_fd_by_name)?;
         add_bind_function!(linker, wasm_bpf_map_operate)?;
@@ -132,6 +141,46 @@ impl WasmBpfModuleRunner {
     ) -> anyhow::Result<()> {
         self.linker.func_wrap(module, name, func).map(|_| ())
     }
+}
+
+/// Preopen `dirs` for the guest, and return a host handle to each one, keyed by the descriptor
+/// the guest will see.
+///
+/// Preopens have to be pushed consecutively and before anything else touches the descriptor
+/// table, since wasi-libc discovers them by walking fd 3, 4, 5... until the first failure.
+/// `push_dir` is `push_preopened_dir` that hands back the assigned descriptor, which is what keys
+/// the host handles.
+pub(crate) fn preopen_config_dirs(
+    wasi: &mut WasiCtx,
+    dirs: &[(PathBuf, PathBuf)],
+) -> anyhow::Result<HashMap<u32, File>> {
+    let mut preopen_dirs: HashMap<u32, File> = HashMap::new();
+    for (host_path, guest_path) in dirs {
+        let cap_dir = CapStdDir::open_ambient_dir(host_path, ambient_authority())
+            .with_context(|| anyhow!("Failed to preopen host directory {:?}", host_path))?;
+        // cap-std opens directories with `O_PATH` on Linux, so its descriptor cannot be reused
+        // host-side; open a plain read-only handle for that. The two opens leave a TOCTOU window,
+        // but both act on an operator-supplied path, the same trust level as the cgroup open in
+        // `bpf::attach`.
+        let host_handle = OpenOptions::new()
+            .read(true)
+            .open(host_path)
+            .with_context(|| anyhow!("Failed to open host directory {:?}", host_path))?;
+        // The guest needs the preopen only as a token to hand to wasm_attach_bpf_program_fd.
+        // Preopen discovery (fd_prestat_get / fd_prestat_dir_name) is not gated on rights in
+        // wasi-common, so empty capabilities keep discovery working while path_open, fd_readdir,
+        // and any create or write beneath the directory fail.
+        let guest_fd = wasi
+            .push_dir(
+                Box::new(WasiDirImpl::from_cap_std(cap_dir)),
+                DirCaps::empty(),
+                FileCaps::empty(),
+                guest_path.clone(),
+            )
+            .with_context(|| anyhow!("Failed to preopen {:?} at {:?}", host_path, guest_path))?;
+        preopen_dirs.insert(guest_fd, host_handle);
+    }
+    Ok(preopen_dirs)
 }
 
 /// A trait which will be implemented on anyhow::Error to check whether the error indicates an non-zero exit code
