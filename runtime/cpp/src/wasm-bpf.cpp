@@ -206,34 +206,41 @@ int wasm_bpf_program::load_bpf_object(const void* obj_buf, size_t obj_buf_sz) {
     return bpf_object__load(object);
 }
 
-static int attach_cgroup(struct bpf_program* prog, const char* path) {
+/// @brief attach a sockops program to the cgroup at path. The caller stores
+/// the returned link; the descriptor opened here is closed either way.
+static bpf_link* attach_cgroup(struct bpf_program* prog, const char* path) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
         printf("Failed to open cgroup\n");
-        return -1;
+        return nullptr;
     }
-    if (!bpf_program__attach_cgroup(prog, fd)) {
+    bpf_link* link = bpf_program__attach_cgroup(prog, fd);
+    if (!link) {
         printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
                path);
-        return -1;
+        close(fd);
+        return nullptr;
     }
     close(fd);
-    return 0;
+    return link;
 }
 
-static int attach_xdp(struct bpf_program* prog, const char* argv) {
+/// @brief attach an xdp program to the named network interface. The caller
+/// stores the returned link.
+static bpf_link* attach_xdp(struct bpf_program* prog, const char* argv) {
     unsigned int ifindex = if_nametoindex(argv);
     if (ifindex < 1 ||
         ifindex > (unsigned int)std::numeric_limits<int>::max()) {
         printf("Failed to find network interface %s\n", argv);
-        return -1;
+        return nullptr;
     }
-    if (!bpf_program__attach_xdp(prog, (int)ifindex)) {
+    bpf_link* link = bpf_program__attach_xdp(prog, (int)ifindex);
+    if (!link) {
         printf("Prog %s failed to attach network interface %s\n",
                bpf_program__name(prog), argv);
-        return -1;
+        return nullptr;
     }
-    return 0;
+    return link;
 }
 
 /// @brief attach a specific bpf program by name and target.
@@ -244,8 +251,13 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
     struct bpf_link* link;
     if (!attach_target || strcmp(attach_target, "") == 0) {
         // auto attach
-        link = bpf_program__attach(
-            bpf_object__find_program_by_name(obj.get(), name));
+        struct bpf_program* prog =
+            bpf_object__find_program_by_name(obj.get(), name);
+        if (!prog) {
+            printf("get prog %s fail", name);
+            return -1;
+        }
+        link = bpf_program__attach(prog);
     } else {
         struct bpf_object* o = obj.get();
         struct bpf_program* prog = bpf_object__find_program_by_name(o, name);
@@ -256,9 +268,15 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
         const char* sec_name = bpf_program__section_name(prog);
         // TODO: support more attach type
         if (strcmp(sec_name, "sockops") == 0) {
-            return attach_cgroup(prog, attach_target);
+            link = attach_cgroup(prog, attach_target);
+            if (!link) {
+                return -1;
+            }
         } else if (strcmp(sec_name, "xdp") == 0) {
-            return attach_xdp(prog, attach_target);
+            link = attach_xdp(prog, attach_target);
+            if (!link) {
+                return -1;
+            }
         } else {
             // try auto attach if new attach target is not supported
             link = bpf_program__attach(
