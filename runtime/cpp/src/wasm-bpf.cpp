@@ -360,6 +360,27 @@ static inline wasm_bpf_context* get_context(wasm_exec_env_t exec_env) {
     return (wasm_bpf_context*)wasm_runtime_get_user_data(exec_env);
 }
 
+/// @brief check one registered preopen against the live WASI prestat table:
+/// the descriptor must still be a directory preopen whose name matches the
+/// registry entry exactly.
+static bool verify_preopen_entry(wasi_ctx_t wasi_ctx,
+                                 const preopened_dir& dir) {
+    __wasi_prestat_t prestat;
+    __wasi_errno_t err = wasmtime_ssp_fd_prestat_get(
+        wasi_ctx->prestats, (__wasi_fd_t)dir.guest_fd, &prestat);
+    if (err != 0 || prestat.pr_type != __WASI_PREOPENTYPE_DIR ||
+        prestat.u.dir.pr_name_len != dir.wasi_path.size()) {
+        return false;
+    }
+    // fd_prestat_dir_name wants the exact length and does not NUL-terminate.
+    std::vector<char> name(dir.wasi_path.size());
+    err = wasmtime_ssp_fd_prestat_dir_name(wasi_ctx->prestats,
+                                           (__wasi_fd_t)dir.guest_fd,
+                                           name.data(), name.size());
+    return err == 0 &&
+           memcmp(name.data(), dir.wasi_path.data(), name.size()) == 0;
+}
+
 /// @brief check every registered preopen against the live WASI prestat table,
 /// then drop its rights to nothing. The guest keeps discovery and the
 /// descriptor token only, like the Rust runtime: opening, listing, or creating
@@ -378,28 +399,12 @@ static int check_and_seal_preopens(wasm_module_inst_t module_inst,
         return -1;
     }
     for (auto& dir : preopens) {
-        __wasi_prestat_t prestat;
-        __wasi_errno_t err = wasmtime_ssp_fd_prestat_get(
-            wasi_ctx->prestats, (__wasi_fd_t)dir.guest_fd, &prestat);
-        if (err != 0 || prestat.pr_type != __WASI_PREOPENTYPE_DIR ||
-            prestat.u.dir.pr_name_len != dir.wasi_path.size()) {
+        if (!verify_preopen_entry(wasi_ctx, dir)) {
             printf("Preopen check failed for %s at guest fd %d\n",
                    dir.wasi_path.c_str(), dir.guest_fd);
             return -1;
         }
-        // fd_prestat_dir_name wants the exact length and does not
-        // NUL-terminate.
-        std::vector<char> name(dir.wasi_path.size());
-        err = wasmtime_ssp_fd_prestat_dir_name(wasi_ctx->prestats,
-                                               (__wasi_fd_t)dir.guest_fd,
-                                               name.data(), name.size());
-        if (err != 0 ||
-            memcmp(name.data(), dir.wasi_path.data(), name.size()) != 0) {
-            printf("Preopen name mismatch for %s at guest fd %d\n",
-                   dir.wasi_path.c_str(), dir.guest_fd);
-            return -1;
-        }
-        err = wasmtime_ssp_fd_fdstat_set_rights(
+        __wasi_errno_t err = wasmtime_ssp_fd_fdstat_set_rights(
             wasi_ctx->curfds, (__wasi_fd_t)dir.guest_fd, 0, 0);
         if (err != 0) {
             printf("Cannot drop the rights of preopen %s at guest fd %d\n",
@@ -408,6 +413,95 @@ static int check_and_seal_preopens(wasm_module_inst_t module_inst,
         }
     }
     return 0;
+}
+
+fd_attach_action fd_attach_action_for(const char* section_name,
+                                      bool has_target_fd) {
+    if (strcmp(section_name, "xdp") == 0)
+        return fd_attach_action::reject_xdp;
+    if (strcmp(section_name, "sockops") == 0 && has_target_fd)
+        return fd_attach_action::attach_cgroup_by_fd;
+    return fd_attach_action::auto_attach;
+}
+
+/// @brief resolve a descriptor the guest passed as an attach target into the
+/// host descriptor of the preopened directory it names. Only a descriptor the
+/// runtime itself preopened resolves: the registry is consulted first, then
+/// the live prestat table has to agree. The returned descriptor is owned by
+/// the context and reused across attaches; the caller must not close it.
+static int resolve_guest_fd(wasm_exec_env_t exec_env, int target_fd) {
+    wasm_bpf_context* context = get_context(exec_env);
+    const preopened_dir* entry = nullptr;
+    for (auto& dir : context->preopens) {
+        if (dir.guest_fd == target_fd) {
+            entry = &dir;
+            break;
+        }
+    }
+    if (!entry)
+        return -1;
+    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
+    if (!module_inst)
+        return -1;
+    wasi_ctx_t wasi_ctx = wasm_runtime_get_wasi_ctx(module_inst);
+    if (!wasi_ctx || !wasi_ctx->prestats)
+        return -1;
+    if (!verify_preopen_entry(wasi_ctx, *entry))
+        return -1;
+    return entry->host_fd;
+}
+
+/// @brief attach a bpf program to a hook point named by a file descriptor.
+/// The section decides what happens before anything is resolved: only sockops
+/// with a target resolves the descriptor, through the preopen registry and
+/// the live prestat table. An unneeded descriptor on any other section is
+/// ignored, never consulted.
+int wasm_bpf_program::attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                                            const char* name,
+                                            int target_fd) {
+    bpf_program* prog = bpf_object__find_program_by_name(obj.get(), name);
+    if (!prog) {
+        printf("Program %s not found\n", name);
+        return -1;
+    }
+    const char* sec_name = bpf_program__section_name(prog);
+    switch (fd_attach_action_for(sec_name, target_fd >= 0)) {
+        case fd_attach_action::reject_xdp:
+            printf(
+                "Program %s is an xdp program; xdp attaches to a network "
+                "interface rather than to a file, so it has no descriptor "
+                "to resolve. Use wasm_attach_bpf_program with the interface "
+                "name\n",
+                name);
+            return -1;
+        case fd_attach_action::attach_cgroup_by_fd: {
+            int host_fd = resolve_guest_fd(exec_env, target_fd);
+            if (host_fd < 0) {
+                printf("Cannot resolve attach fd %d\n", target_fd);
+                return -1;
+            }
+            // The registry owns host_fd and reuses it; never close it here.
+            bpf_link* link = bpf_program__attach_cgroup(prog, host_fd);
+            if (!link) {
+                printf("Prog %s failed to attach to cgroup fd %d\n", name,
+                       target_fd);
+                return -1;
+            }
+            links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+                link, bpf_link__destroy});
+            return 0;
+        }
+        case fd_attach_action::auto_attach: {
+            bpf_link* link = bpf_program__attach(prog);
+            if (!link) {
+                return (int)libbpf_get_error(link);
+            }
+            links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+                link, bpf_link__destroy});
+            return 0;
+        }
+    }
+    return -1;
 }
 
 extern "C" {
@@ -450,6 +544,21 @@ int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
             return -EFAULT;
         return (*bpf_programs)[program]->attach_bpf_program(name,
                                                             attach_target);
+    }
+    return -EINVAL;
+}
+
+int wasm_attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                               uint64_t program,
+                               char* name,
+                               int32_t target_fd) {
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
+    if (bpf_programs->find(program) != bpf_programs->end()) {
+        // Ensure that the string pointer passed from wasm program is valid
+        if (!verify_wasm_string_by_native_addr(exec_env, name))
+            return -EFAULT;
+        return (*bpf_programs)[program]->attach_bpf_program_fd(exec_env, name,
+                                                               target_fd);
     }
     return -EINVAL;
 }
@@ -523,6 +632,7 @@ int wasm_main_ex(unsigned char* buf,
     static NativeSymbol native_symbols[] = {
         EXPORT_WASM_API_WITH_SIG(wasm_load_bpf_object, "(*~)I"),
         EXPORT_WASM_API_WITH_SIG(wasm_attach_bpf_program, "(I$$)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_attach_bpf_program_fd, "(I$i)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_buffer_poll, "(Iiii*~i)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_fd_by_name, "(I$)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_operate, "(ii***I)i"),

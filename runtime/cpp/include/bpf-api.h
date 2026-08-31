@@ -72,6 +72,9 @@ class wasm_bpf_program {
     int bpf_map_fd_by_name(const char* name);
     int load_bpf_object(const void* obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char* name, const char* attach_target);
+    int attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                              const char* name,
+                              int target_fd);
     int bpf_buffer_poll(wasm_exec_env_t exec_env,
                         int fd,
                         int32_t sample_func,
@@ -107,6 +110,20 @@ struct wasm_bpf_context {
     /// closes the host descriptors held in `preopens`
     ~wasm_bpf_context();
 };
+
+/// @brief what wasm_attach_bpf_program_fd does for a program. The decision is
+/// made from the section name before any descriptor is resolved.
+enum class fd_attach_action {
+    attach_cgroup_by_fd,
+    reject_xdp,
+    auto_attach,
+};
+
+/// @brief pick the action for a section. Runs before any descriptor is
+/// resolved, so it sees only whether a target was passed, never what it
+/// resolves to.
+fd_attach_action fd_attach_action_for(const char* section_name,
+                                      bool has_target_fd);
 
 enum bpf_map_cmd {
     _BPF_MAP_LOOKUP_ELEM = 1,
