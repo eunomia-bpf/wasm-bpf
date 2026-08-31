@@ -64,6 +64,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     naersk = {
       url = "github:nix-community/naersk";
+      inputs.fenix.follows = "fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
