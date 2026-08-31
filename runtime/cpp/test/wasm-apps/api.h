@@ -20,6 +20,11 @@ ATTR("wasm_attach_bpf_program")
 int wasm_attach_bpf_program(bpf_object_skel obj,
                             const char* name,
                             const char* attach_target);
+/// attach a bpf program to a hook point named by a file descriptor.
+ATTR("wasm_attach_bpf_program_fd")
+int wasm_attach_bpf_program_fd(bpf_object_skel obj,
+                               const char* name,
+                               int target_fd);
 /// poll a bpf buffer, and call a wasm callback indicated by sample_func.
 /// the first time to call this function will open and create a bpf buffer.
 ATTR("wasm_bpf_buffer_poll")

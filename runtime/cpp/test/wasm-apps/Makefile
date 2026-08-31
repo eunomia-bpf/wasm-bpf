@@ -3,7 +3,7 @@ DEL = rm -rf
 
 # all: binding.wasm memory_test_1.wasm memory_test_2.wasm
 
-MODULES = binding memory_test_1 memory_test_2
+MODULES = binding memory_test_1 memory_test_2 attach_fd_test
 
 MODULE_WASM_FILES = $(foreach n, $(MODULES), $(n).wasm)
 

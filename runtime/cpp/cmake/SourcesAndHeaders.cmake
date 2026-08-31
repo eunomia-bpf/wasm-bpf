@@ -24,6 +24,7 @@ set(skel_includes
 
 set(test_sources
     src/attach_dispatch_test.cpp
+    src/attach_fd_e2e_test.cpp
     src/bpf_api_test.cpp
     src/memory_check_test_driver.cpp
 )
