@@ -676,14 +676,7 @@ int wasm_main_ex(unsigned char* buf,
     // 5... in list order and reports the literal string in the prestat table;
     // both assumptions are checked against the live table after instantiation.
     for (int i = 0; i < dir_count; i++) {
-        char* resolved = realpath(dirs[i], NULL);
-        if (!resolved) {
-            printf("Cannot resolve preopen directory %s: %s\n", dirs[i],
-                   strerror(errno));
-            return -1;
-        }
-        int host_fd = open(resolved, O_RDONLY | O_DIRECTORY);
-        free(resolved);
+        int host_fd = open(dirs[i], O_RDONLY | O_DIRECTORY);
         if (host_fd < 0) {
             printf("Cannot open preopen directory %s: %s\n", dirs[i],
                    strerror(errno));
