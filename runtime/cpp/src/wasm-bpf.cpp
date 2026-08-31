@@ -23,10 +23,30 @@ extern "C" {
 #include <net/if.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include "wasmtime_ssp.h"
 extern bool wasm_runtime_call_indirect(wasm_exec_env_t exec_env,
                                        uint32_t element_indices,
                                        uint32_t argc,
                                        uint32_t argv[]);
+/// WAMR keeps this struct private to its libc-wasi wrapper; redeclared here
+/// exactly as core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c declares it,
+/// so the runtime can reach the descriptor tables of the instance. Tied to the
+/// pinned submodule revision; the startup self-check below turns any future
+/// layout drift into a loud error.
+typedef struct WASIContext {
+    struct fd_table* curfds;
+    struct fd_prestats* prestats;
+    struct argv_environ_values* argv_environ;
+    struct addr_pool* addr_pool;
+    char* ns_lookup_buf;
+    char** ns_lookup_list;
+    char* argv_buf;
+    char** argv_list;
+    char* env_buf;
+    char** env_list;
+    uint32_t exit_code;
+}* wasi_ctx_t;
+wasi_ctx_t wasm_runtime_get_wasi_ctx(wasm_module_inst_t module_inst);
 }
 static int bpf_buffer_sample(void* ctx, void* data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level,
@@ -328,6 +348,68 @@ int bpf_map_operate(wasm_exec_env_t exec_env,
     }
 }
 
+wasm_bpf_context::~wasm_bpf_context() {
+    for (auto& dir : preopens) {
+        if (dir.host_fd >= 0)
+            close(dir.host_fd);
+    }
+}
+
+/// @brief the context stored as user data of the execution environment.
+static inline wasm_bpf_context* get_context(wasm_exec_env_t exec_env) {
+    return (wasm_bpf_context*)wasm_runtime_get_user_data(exec_env);
+}
+
+/// @brief check every registered preopen against the live WASI prestat table,
+/// then drop its rights to nothing. The guest keeps discovery and the
+/// descriptor token only, like the Rust runtime: opening, listing, or creating
+/// anything beneath the preopen fails. wasm_runtime_instantiate runs a
+/// module's start section before this seal, so such a module could use the
+/// preopens at full rights first; wasi-sdk command modules export _start and
+/// have no start section, so normal guests never hit that window. Returns 0,
+/// or -1 after printing what went wrong.
+static int check_and_seal_preopens(wasm_module_inst_t module_inst,
+                                   const std::vector<preopened_dir>& preopens) {
+    if (preopens.empty())
+        return 0;
+    wasi_ctx_t wasi_ctx = wasm_runtime_get_wasi_ctx(module_inst);
+    if (!wasi_ctx || !wasi_ctx->prestats || !wasi_ctx->curfds) {
+        printf("No WASI context to check the preopens against\n");
+        return -1;
+    }
+    for (auto& dir : preopens) {
+        __wasi_prestat_t prestat;
+        __wasi_errno_t err = wasmtime_ssp_fd_prestat_get(
+            wasi_ctx->prestats, (__wasi_fd_t)dir.guest_fd, &prestat);
+        if (err != 0 || prestat.pr_type != __WASI_PREOPENTYPE_DIR ||
+            prestat.u.dir.pr_name_len != dir.wasi_path.size()) {
+            printf("Preopen check failed for %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+        // fd_prestat_dir_name wants the exact length and does not
+        // NUL-terminate.
+        std::vector<char> name(dir.wasi_path.size());
+        err = wasmtime_ssp_fd_prestat_dir_name(wasi_ctx->prestats,
+                                               (__wasi_fd_t)dir.guest_fd,
+                                               name.data(), name.size());
+        if (err != 0 ||
+            memcmp(name.data(), dir.wasi_path.data(), name.size()) != 0) {
+            printf("Preopen name mismatch for %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+        err = wasmtime_ssp_fd_fdstat_set_rights(
+            wasi_ctx->curfds, (__wasi_fd_t)dir.guest_fd, 0, 0);
+        if (err != 0) {
+            printf("Cannot drop the rights of preopen %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 extern "C" {
 uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
                               void* obj_buf,
@@ -339,8 +421,7 @@ uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
                                            (uint32_t)obj_buf_sz)) {
         return 0;
     }
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     auto program = std::make_unique<wasm_bpf_program>();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
     if (res < 0)
@@ -351,8 +432,7 @@ uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
 }
 
 int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (!bpf_programs->count(program))
         return 0;
     return bpf_programs->erase(program) > 0 ? 0 : -1;
@@ -362,8 +442,7 @@ int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
                             uint64_t program,
                             char* name,
                             char* attach_target) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string pointer passed from wasm program is valid
         if ((!verify_wasm_string_by_native_addr(exec_env, name)) ||
@@ -383,8 +462,7 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env,
                          char* data,
                          int max_size,
                          int timeout_ms) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the buffer is valid and can hold the data received
         if (!verify_wasm_buffer_by_native_addr(exec_env, data,
@@ -399,8 +477,7 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env,
 int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env,
                             uint64_t program,
                             const char* name) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string is valid
         if (!verify_wasm_string_by_native_addr(exec_env, name))
@@ -423,7 +500,12 @@ int wasm_bpf_map_operate(wasm_exec_env_t exec_env,
 }
 }
 
-int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
+int wasm_main_ex(unsigned char* buf,
+                 unsigned int size,
+                 int argc,
+                 char* argv[],
+                 const char** dirs,
+                 int dir_count) {
     char error_buf[128];
     int exit_code = 0;
     char* wasm_path = NULL;
@@ -460,7 +542,29 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         printf("Load wasm module failed. error: %s\n", error_buf);
         return -1;
     }
-    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv, argc);
+    wasm_bpf_context context;
+    // Open a host descriptor for every directory before WASI sees it, so a bad
+    // path fails startup with one clear message. WAMR numbers preopens 3, 4,
+    // 5... in list order and reports the literal string in the prestat table;
+    // both assumptions are checked against the live table after instantiation.
+    for (int i = 0; i < dir_count; i++) {
+        char* resolved = realpath(dirs[i], NULL);
+        if (!resolved) {
+            printf("Cannot resolve preopen directory %s: %s\n", dirs[i],
+                   strerror(errno));
+            return -1;
+        }
+        int host_fd = open(resolved, O_RDONLY | O_DIRECTORY);
+        free(resolved);
+        if (host_fd < 0) {
+            printf("Cannot open preopen directory %s: %s\n", dirs[i],
+                   strerror(errno));
+            return -1;
+        }
+        context.preopens.push_back({3 + i, host_fd, std::string(dirs[i])});
+    }
+    wasm_runtime_set_wasi_args(module, dirs, (uint32_t)dir_count, NULL, 0, NULL,
+                               0, argv, argc);
     module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                            error_buf, sizeof(error_buf));
     if (!module_inst) {
@@ -472,9 +576,11 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         printf("Create wasm execution environment failed.\n");
         return -1;
     }
-    bpf_program_manager prog_manager;
-    wasm_runtime_set_user_data(exec_env, &prog_manager);
+    wasm_runtime_set_user_data(exec_env, &context);
     wasm_runtime_set_module_inst(exec_env, module_inst);
+    if (check_and_seal_preopens(module_inst, context.preopens) < 0) {
+        return -1;
+    }
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The start wasm function is not found.\n");
         return -1;
@@ -498,4 +604,8 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         wasm_runtime_unload(module);
     wasm_runtime_destroy();
     return exit_code;
+}
+
+int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
+    return wasm_main_ex(buf, size, argc, argv, NULL, 0);
 }
