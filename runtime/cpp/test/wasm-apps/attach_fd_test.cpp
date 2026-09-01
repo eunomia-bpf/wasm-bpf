@@ -95,7 +95,15 @@ int main(int argc, char** argv) {
         return 7;
     }
 
+    // The driver probed the environment natively and passed the verdict in.
+    // When the same attach succeeded there, a failure here is a regression,
+    // never a skip.
+    bool expect = argc > 1 && strcmp(argv[1], "expect-attach") == 0;
     if (wasm_attach_bpf_program_fd(handle, SOCKOPS_PROG_NAME, cgroup_fd) != 0) {
+        if (expect) {
+            printf("Attach failed although this environment supports it\n");
+            return 8;
+        }
         printf("SKIP: sockops attach not supported on this kernel\n");
         return 0;
     }
