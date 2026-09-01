@@ -557,10 +557,13 @@ int wasm_bpf_program::attach_bpf_program_fd(wasm_exec_env_t exec_env,
             }
             // The registry owns host_fd and reuses it; never close it here.
             bpf_link* link = bpf_program__attach_cgroup(prog, host_fd);
-            if (!link) {
+            // Read the error before printf can clobber the errno that
+            // libbpf_get_error reads on the null leg.
+            int err = (int)libbpf_get_error(link);
+            if (err) {
                 printf("Prog %s failed to attach to cgroup fd %d\n", name,
                        target_fd);
-                return -1;
+                return err;
             }
             links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
                 link, bpf_link__destroy});
@@ -568,8 +571,9 @@ int wasm_bpf_program::attach_bpf_program_fd(wasm_exec_env_t exec_env,
         }
         case fd_attach_action::auto_attach: {
             bpf_link* link = bpf_program__attach(prog);
-            if (!link) {
-                return (int)libbpf_get_error(link);
+            int err = (int)libbpf_get_error(link);
+            if (err) {
+                return err;
             }
             links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
                 link, bpf_link__destroy});
