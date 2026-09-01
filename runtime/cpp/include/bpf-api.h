@@ -145,8 +145,9 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]);
 /// The main entry with preopened directories. Each of the `dir_count` paths in
 /// `dirs` is preopened for the wasm module as an attach-target token: the guest
 /// can discover it and hold its descriptor, and cannot open, list, or change
-/// anything beneath it, since its WASI rights are dropped to nothing after
-/// instantiation.
+/// anything beneath it. The directories are injected with no rights only
+/// after instantiation has run the module's own init code, so no guest code
+/// ever sees a usable preopen.
 int wasm_main_ex(unsigned char* buf,
                  unsigned int size,
                  int argc,

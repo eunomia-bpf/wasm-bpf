@@ -47,6 +47,15 @@ typedef struct WASIContext {
     uint32_t exit_code;
 }* wasi_ctx_t;
 wasi_ctx_t wasm_runtime_get_wasi_ctx(wasm_module_inst_t module_inst);
+/// Also private to WAMR's libc-wasi (declared in its posix.h, which is not on
+/// the export surface): the two calls its own instantiation loop uses to seat
+/// a preopen in the descriptor tables.
+bool fd_table_insert_existing(struct fd_table* curfds,
+                              __wasi_fd_t fd,
+                              int host_fd);
+bool fd_prestats_insert(struct fd_prestats* prestats,
+                        const char* path,
+                        __wasi_fd_t fd);
 }
 static int bpf_buffer_sample(void* ctx, void* data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level,
@@ -399,33 +408,81 @@ static bool verify_preopen_entry(wasi_ctx_t wasi_ctx,
            memcmp(name.data(), dir.wasi_path.data(), name.size()) == 0;
 }
 
-/// @brief check every registered preopen against the live WASI prestat table,
-/// then drop its rights to nothing. The guest keeps discovery and the
-/// descriptor token only, like the Rust runtime: opening, listing, or creating
-/// anything beneath the preopen fails. wasm_runtime_instantiate runs a
-/// module's start section before this seal, so such a module could use the
-/// preopens at full rights first; wasi-sdk command modules export _start and
-/// have no start section, so normal guests never hit that window. Returns 0,
-/// or -1 after printing what went wrong.
-static int check_and_seal_preopens(wasm_module_inst_t module_inst,
-                                   const std::vector<preopened_dir>& preopens) {
+/// @brief give the guest its preopened directories. Instantiation has already
+/// run the module's own init code (_initialize, __post_instantiate, the start
+/// section) with no preopens in sight, so no guest code ever sees a
+/// rights-carrying descriptor: each directory is injected here and its rights
+/// are dropped to nothing before the start function runs. Command modules
+/// only by construction; a reactor module's constructors run at
+/// instantiation, before injection, and would not see the preopens at all.
+/// Returns 0, or -1 after printing what went wrong.
+static int inject_and_seal_preopens(
+    wasm_module_inst_t module_inst,
+    const std::vector<preopened_dir>& preopens) {
     if (preopens.empty())
         return 0;
     wasi_ctx_t wasi_ctx = wasm_runtime_get_wasi_ctx(module_inst);
     if (!wasi_ctx || !wasi_ctx->prestats || !wasi_ctx->curfds) {
-        printf("No WASI context to check the preopens against\n");
+        printf("No WASI context to inject the preopens into\n");
         return -1;
     }
     for (auto& dir : preopens) {
-        if (!verify_preopen_entry(wasi_ctx, dir)) {
-            printf("Preopen check failed for %s at guest fd %d\n",
+        __wasi_fd_t guest_fd = (__wasi_fd_t)dir.guest_fd;
+        // The slot must be free. The registry numbers preopens 3, 4, 5...,
+        // and wasi-libc discovers them by walking from 3, so a descriptor
+        // already sitting at this number means the module grabbed it during
+        // its own init. A hostile module genuinely can: with no prestats
+        // registered yet, fd_renumber will move stdio onto fd 3. The probe
+        // turns that misbind into a loud startup failure; the in-table
+        // assert for it is compiled out of release builds and cannot be
+        // leaned on.
+        __wasi_fdstat_t fdstat;
+        __wasi_errno_t err =
+            wasmtime_ssp_fd_fdstat_get(wasi_ctx->curfds, guest_fd, &fdstat);
+        if (err != __WASI_EBADF) {
+            printf("Guest fd %d for preopen %s is already occupied\n",
+                   dir.guest_fd, dir.wasi_path.c_str());
+            return -1;
+        }
+        // The WASI table closes its descriptors when the instance is torn
+        // down, and the registry closes dir.host_fd itself, so the table
+        // gets its own duplicate.
+        int dup_fd = dup(dir.host_fd);
+        if (dup_fd < 0) {
+            printf("Cannot duplicate the descriptor of preopen %s: %s\n",
+                   dir.wasi_path.c_str(), strerror(errno));
+            return -1;
+        }
+        if (!fd_table_insert_existing(wasi_ctx->curfds, guest_fd, dup_fd)) {
+            // WAMR may or may not have closed the dup on this path; a
+            // possible one-fd leak on a fatal error is safer than a possible
+            // double close. The registry's own host_fd is untouched either
+            // way.
+            printf("Cannot insert preopen %s at guest fd %d\n",
                    dir.wasi_path.c_str(), dir.guest_fd);
             return -1;
         }
-        __wasi_errno_t err = wasmtime_ssp_fd_fdstat_set_rights(
-            wasi_ctx->curfds, (__wasi_fd_t)dir.guest_fd, 0, 0);
+        // From here on the table owns dup_fd and closes it at instance
+        // teardown; nothing here closes it again.
+        if (!fd_prestats_insert(wasi_ctx->prestats, dir.wasi_path.c_str(),
+                                guest_fd)) {
+            printf("Cannot record the prestat of preopen %s\n",
+                   dir.wasi_path.c_str());
+            return -1;
+        }
+        err =
+            wasmtime_ssp_fd_fdstat_set_rights(wasi_ctx->curfds, guest_fd, 0, 0);
         if (err != 0) {
             printf("Cannot drop the rights of preopen %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+    }
+    // The table was just written by hand; it must read back exactly like a
+    // preopen the WASI layer set up itself.
+    for (auto& dir : preopens) {
+        if (!verify_preopen_entry(wasi_ctx, dir)) {
+            printf("Preopen check failed for %s at guest fd %d\n",
                    dir.wasi_path.c_str(), dir.guest_fd);
             return -1;
         }
@@ -671,10 +728,11 @@ int wasm_main_ex(unsigned char* buf,
         return -1;
     }
     wasm_bpf_context context;
-    // Open a host descriptor for every directory before WASI sees it, so a bad
-    // path fails startup with one clear message. WAMR numbers preopens 3, 4,
-    // 5... in list order and reports the literal string in the prestat table;
-    // both assumptions are checked against the live table after instantiation.
+    // Open a host descriptor for every directory up front, so a bad path
+    // fails startup with one clear message. The runtime itself injects the
+    // directories at guest fds 3, 4, 5... after instantiation; wasi-libc
+    // discovers preopens by walking from fd 3 until the first bad
+    // descriptor, so the numbers must stay contiguous.
     for (int i = 0; i < dir_count; i++) {
         int host_fd = open(dirs[i], O_RDONLY | O_DIRECTORY);
         if (host_fd < 0) {
@@ -684,8 +742,11 @@ int wasm_main_ex(unsigned char* buf,
         }
         context.preopens.push_back({3 + i, host_fd, std::string(dirs[i])});
     }
-    wasm_runtime_set_wasi_args(module, dirs, (uint32_t)dir_count, NULL, 0, NULL,
-                               0, argv, argc);
+    // WASI gets no preopens here: instantiation runs the module's own init
+    // code (_initialize, __post_instantiate, the start section), and no guest
+    // code may ever see a rights-carrying preopen. The directories are
+    // injected after instantiation, already sealed.
+    wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv, argc);
     module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                            error_buf, sizeof(error_buf));
     if (!module_inst) {
@@ -699,7 +760,7 @@ int wasm_main_ex(unsigned char* buf,
     }
     wasm_runtime_set_user_data(exec_env, &context);
     wasm_runtime_set_module_inst(exec_env, module_inst);
-    if (check_and_seal_preopens(module_inst, context.preopens) < 0) {
+    if (inject_and_seal_preopens(module_inst, context.preopens) < 0) {
         return -1;
     }
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
