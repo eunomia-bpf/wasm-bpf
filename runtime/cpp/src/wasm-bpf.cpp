@@ -23,10 +23,39 @@ extern "C" {
 #include <net/if.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include "wasmtime_ssp.h"
 extern bool wasm_runtime_call_indirect(wasm_exec_env_t exec_env,
                                        uint32_t element_indices,
                                        uint32_t argc,
                                        uint32_t argv[]);
+/// WAMR keeps this struct private to its libc-wasi wrapper; redeclared here
+/// exactly as core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c declares it,
+/// so the runtime can reach the descriptor tables of the instance. Tied to the
+/// pinned submodule revision; the startup self-check below turns any future
+/// layout drift into a loud error.
+typedef struct WASIContext {
+    struct fd_table* curfds;
+    struct fd_prestats* prestats;
+    struct argv_environ_values* argv_environ;
+    struct addr_pool* addr_pool;
+    char* ns_lookup_buf;
+    char** ns_lookup_list;
+    char* argv_buf;
+    char** argv_list;
+    char* env_buf;
+    char** env_list;
+    uint32_t exit_code;
+}* wasi_ctx_t;
+wasi_ctx_t wasm_runtime_get_wasi_ctx(wasm_module_inst_t module_inst);
+/// Also private to WAMR's libc-wasi (declared in its posix.h, which is not on
+/// the export surface): the two calls its own instantiation loop uses to seat
+/// a preopen in the descriptor tables.
+bool fd_table_insert_existing(struct fd_table* curfds,
+                              __wasi_fd_t fd,
+                              int host_fd);
+bool fd_prestats_insert(struct fd_prestats* prestats,
+                        const char* path,
+                        __wasi_fd_t fd);
 }
 static int bpf_buffer_sample(void* ctx, void* data, size_t size);
 static int libbpf_print_fn(enum libbpf_print_level level,
@@ -186,34 +215,41 @@ int wasm_bpf_program::load_bpf_object(const void* obj_buf, size_t obj_buf_sz) {
     return bpf_object__load(object);
 }
 
-static int attach_cgroup(struct bpf_program* prog, const char* path) {
+/// @brief attach a sockops program to the cgroup at path. The caller stores
+/// the returned link; the descriptor opened here is closed either way.
+static bpf_link* attach_cgroup(struct bpf_program* prog, const char* path) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
         printf("Failed to open cgroup\n");
-        return -1;
+        return nullptr;
     }
-    if (!bpf_program__attach_cgroup(prog, fd)) {
+    bpf_link* link = bpf_program__attach_cgroup(prog, fd);
+    if (!link) {
         printf("Prog %s failed to attach cgroup %s\n", bpf_program__name(prog),
                path);
-        return -1;
+        close(fd);
+        return nullptr;
     }
     close(fd);
-    return 0;
+    return link;
 }
 
-static int attach_xdp(struct bpf_program* prog, const char* argv) {
+/// @brief attach an xdp program to the named network interface. The caller
+/// stores the returned link.
+static bpf_link* attach_xdp(struct bpf_program* prog, const char* argv) {
     unsigned int ifindex = if_nametoindex(argv);
     if (ifindex < 1 ||
         ifindex > (unsigned int)std::numeric_limits<int>::max()) {
         printf("Failed to find network interface %s\n", argv);
-        return -1;
+        return nullptr;
     }
-    if (!bpf_program__attach_xdp(prog, (int)ifindex)) {
+    bpf_link* link = bpf_program__attach_xdp(prog, (int)ifindex);
+    if (!link) {
         printf("Prog %s failed to attach network interface %s\n",
                bpf_program__name(prog), argv);
-        return -1;
+        return nullptr;
     }
-    return 0;
+    return link;
 }
 
 /// @brief attach a specific bpf program by name and target.
@@ -224,8 +260,13 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
     struct bpf_link* link;
     if (!attach_target || strcmp(attach_target, "") == 0) {
         // auto attach
-        link = bpf_program__attach(
-            bpf_object__find_program_by_name(obj.get(), name));
+        struct bpf_program* prog =
+            bpf_object__find_program_by_name(obj.get(), name);
+        if (!prog) {
+            printf("get prog %s fail", name);
+            return -1;
+        }
+        link = bpf_program__attach(prog);
     } else {
         struct bpf_object* o = obj.get();
         struct bpf_program* prog = bpf_object__find_program_by_name(o, name);
@@ -236,9 +277,15 @@ int wasm_bpf_program::attach_bpf_program(const char* name,
         const char* sec_name = bpf_program__section_name(prog);
         // TODO: support more attach type
         if (strcmp(sec_name, "sockops") == 0) {
-            return attach_cgroup(prog, attach_target);
+            link = attach_cgroup(prog, attach_target);
+            if (!link) {
+                return -1;
+            }
         } else if (strcmp(sec_name, "xdp") == 0) {
-            return attach_xdp(prog, attach_target);
+            link = attach_xdp(prog, attach_target);
+            if (!link) {
+                return -1;
+            }
         } else {
             // try auto attach if new attach target is not supported
             link = bpf_program__attach(
@@ -328,6 +375,214 @@ int bpf_map_operate(wasm_exec_env_t exec_env,
     }
 }
 
+wasm_bpf_context::~wasm_bpf_context() {
+    for (auto& dir : preopens) {
+        if (dir.host_fd >= 0)
+            close(dir.host_fd);
+    }
+}
+
+/// @brief the context stored as user data of the execution environment.
+static inline wasm_bpf_context* get_context(wasm_exec_env_t exec_env) {
+    return (wasm_bpf_context*)wasm_runtime_get_user_data(exec_env);
+}
+
+/// @brief check one registered preopen against the live WASI prestat table:
+/// the descriptor must still be a directory preopen whose name matches the
+/// registry entry exactly.
+static bool verify_preopen_entry(wasi_ctx_t wasi_ctx,
+                                 const preopened_dir& dir) {
+    __wasi_prestat_t prestat;
+    __wasi_errno_t err = wasmtime_ssp_fd_prestat_get(
+        wasi_ctx->prestats, (__wasi_fd_t)dir.guest_fd, &prestat);
+    if (err != 0 || prestat.pr_type != __WASI_PREOPENTYPE_DIR ||
+        prestat.u.dir.pr_name_len != dir.wasi_path.size()) {
+        return false;
+    }
+    // fd_prestat_dir_name wants the exact length and does not NUL-terminate.
+    std::vector<char> name(dir.wasi_path.size());
+    err = wasmtime_ssp_fd_prestat_dir_name(wasi_ctx->prestats,
+                                           (__wasi_fd_t)dir.guest_fd,
+                                           name.data(), name.size());
+    return err == 0 &&
+           memcmp(name.data(), dir.wasi_path.data(), name.size()) == 0;
+}
+
+/// @brief give the guest its preopened directories. Instantiation has already
+/// run the module's own init code (_initialize, __post_instantiate, the start
+/// section) with no preopens in sight, so no guest code ever sees a
+/// rights-carrying descriptor: each directory is injected here and its rights
+/// are dropped to nothing before the start function runs. Command modules
+/// only by construction; a reactor module's constructors run at
+/// instantiation, before injection, and would not see the preopens at all.
+/// Returns 0, or -1 after printing what went wrong.
+static int inject_and_seal_preopens(
+    wasm_module_inst_t module_inst,
+    const std::vector<preopened_dir>& preopens) {
+    if (preopens.empty())
+        return 0;
+    wasi_ctx_t wasi_ctx = wasm_runtime_get_wasi_ctx(module_inst);
+    if (!wasi_ctx || !wasi_ctx->prestats || !wasi_ctx->curfds) {
+        printf("No WASI context to inject the preopens into\n");
+        return -1;
+    }
+    for (auto& dir : preopens) {
+        __wasi_fd_t guest_fd = (__wasi_fd_t)dir.guest_fd;
+        // The slot must be free. The registry numbers preopens 3, 4, 5...,
+        // and wasi-libc discovers them by walking from 3, so a descriptor
+        // already sitting at this number means the module grabbed it during
+        // its own init. A hostile module genuinely can: with no prestats
+        // registered yet, fd_renumber will move stdio onto fd 3. The probe
+        // turns that misbind into a loud startup failure; the in-table
+        // assert for it is compiled out of release builds and cannot be
+        // leaned on.
+        __wasi_fdstat_t fdstat;
+        __wasi_errno_t err =
+            wasmtime_ssp_fd_fdstat_get(wasi_ctx->curfds, guest_fd, &fdstat);
+        if (err != __WASI_EBADF) {
+            printf("Guest fd %d for preopen %s is already occupied\n",
+                   dir.guest_fd, dir.wasi_path.c_str());
+            return -1;
+        }
+        // The WASI table closes its descriptors when the instance is torn
+        // down, and the registry closes dir.host_fd itself, so the table
+        // gets its own duplicate.
+        int dup_fd = dup(dir.host_fd);
+        if (dup_fd < 0) {
+            printf("Cannot duplicate the descriptor of preopen %s: %s\n",
+                   dir.wasi_path.c_str(), strerror(errno));
+            return -1;
+        }
+        if (!fd_table_insert_existing(wasi_ctx->curfds, guest_fd, dup_fd)) {
+            // WAMR may or may not have closed the dup on this path; a
+            // possible one-fd leak on a fatal error is safer than a possible
+            // double close. The registry's own host_fd is untouched either
+            // way.
+            printf("Cannot insert preopen %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+        // From here on the table owns dup_fd and closes it at instance
+        // teardown; nothing here closes it again.
+        if (!fd_prestats_insert(wasi_ctx->prestats, dir.wasi_path.c_str(),
+                                guest_fd)) {
+            printf("Cannot record the prestat of preopen %s\n",
+                   dir.wasi_path.c_str());
+            return -1;
+        }
+        err =
+            wasmtime_ssp_fd_fdstat_set_rights(wasi_ctx->curfds, guest_fd, 0, 0);
+        if (err != 0) {
+            printf("Cannot drop the rights of preopen %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+    }
+    // The table was just written by hand; it must read back exactly like a
+    // preopen the WASI layer set up itself.
+    for (auto& dir : preopens) {
+        if (!verify_preopen_entry(wasi_ctx, dir)) {
+            printf("Preopen check failed for %s at guest fd %d\n",
+                   dir.wasi_path.c_str(), dir.guest_fd);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+fd_attach_action fd_attach_action_for(const char* section_name,
+                                      bool has_target_fd) {
+    if (strcmp(section_name, "xdp") == 0)
+        return fd_attach_action::reject_xdp;
+    if (strcmp(section_name, "sockops") == 0 && has_target_fd)
+        return fd_attach_action::attach_cgroup_by_fd;
+    return fd_attach_action::auto_attach;
+}
+
+/// @brief resolve a descriptor the guest passed as an attach target into the
+/// host descriptor of the preopened directory it names. Only a descriptor the
+/// runtime itself preopened resolves: the registry is consulted first, then
+/// the live prestat table has to agree. The returned descriptor is owned by
+/// the context and reused across attaches; the caller must not close it.
+static int resolve_guest_fd(wasm_exec_env_t exec_env, int target_fd) {
+    wasm_bpf_context* context = get_context(exec_env);
+    const preopened_dir* entry = nullptr;
+    for (auto& dir : context->preopens) {
+        if (dir.guest_fd == target_fd) {
+            entry = &dir;
+            break;
+        }
+    }
+    if (!entry)
+        return -1;
+    wasm_module_inst_t module_inst = wasm_runtime_get_module_inst(exec_env);
+    if (!module_inst)
+        return -1;
+    wasi_ctx_t wasi_ctx = wasm_runtime_get_wasi_ctx(module_inst);
+    if (!wasi_ctx || !wasi_ctx->prestats)
+        return -1;
+    if (!verify_preopen_entry(wasi_ctx, *entry))
+        return -1;
+    return entry->host_fd;
+}
+
+/// @brief attach a bpf program to a hook point named by a file descriptor.
+/// The section decides what happens before anything is resolved: only sockops
+/// with a target resolves the descriptor, through the preopen registry and
+/// the live prestat table. An unneeded descriptor on any other section is
+/// ignored, never consulted.
+int wasm_bpf_program::attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                                            const char* name,
+                                            int target_fd) {
+    bpf_program* prog = bpf_object__find_program_by_name(obj.get(), name);
+    if (!prog) {
+        printf("Program %s not found\n", name);
+        return -1;
+    }
+    const char* sec_name = bpf_program__section_name(prog);
+    switch (fd_attach_action_for(sec_name, target_fd >= 0)) {
+        case fd_attach_action::reject_xdp:
+            printf(
+                "Program %s is an xdp program; xdp attaches to a network "
+                "interface rather than to a file, so it has no descriptor "
+                "to resolve. Use wasm_attach_bpf_program with the interface "
+                "name\n",
+                name);
+            return -1;
+        case fd_attach_action::attach_cgroup_by_fd: {
+            int host_fd = resolve_guest_fd(exec_env, target_fd);
+            if (host_fd < 0) {
+                printf("Cannot resolve attach fd %d\n", target_fd);
+                return -1;
+            }
+            // The registry owns host_fd and reuses it; never close it here.
+            bpf_link* link = bpf_program__attach_cgroup(prog, host_fd);
+            // Read the error before printf can clobber the errno that
+            // libbpf_get_error reads on the null leg.
+            int err = (int)libbpf_get_error(link);
+            if (err) {
+                printf("Prog %s failed to attach to cgroup fd %d\n", name,
+                       target_fd);
+                return err;
+            }
+            links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+                link, bpf_link__destroy});
+            return 0;
+        }
+        case fd_attach_action::auto_attach: {
+            bpf_link* link = bpf_program__attach(prog);
+            int err = (int)libbpf_get_error(link);
+            if (err) {
+                return err;
+            }
+            links.emplace(std::unique_ptr<bpf_link, int (*)(bpf_link * obj)>{
+                link, bpf_link__destroy});
+            return 0;
+        }
+    }
+    return -1;
+}
+
 extern "C" {
 uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
                               void* obj_buf,
@@ -339,8 +594,7 @@ uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
                                            (uint32_t)obj_buf_sz)) {
         return 0;
     }
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     auto program = std::make_unique<wasm_bpf_program>();
     int res = program->load_bpf_object(obj_buf, (size_t)obj_buf_sz);
     if (res < 0)
@@ -351,8 +605,7 @@ uint64_t wasm_load_bpf_object(wasm_exec_env_t exec_env,
 }
 
 int wasm_close_bpf_object(wasm_exec_env_t exec_env, uint64_t program) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (!bpf_programs->count(program))
         return 0;
     return bpf_programs->erase(program) > 0 ? 0 : -1;
@@ -362,8 +615,7 @@ int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
                             uint64_t program,
                             char* name,
                             char* attach_target) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string pointer passed from wasm program is valid
         if ((!verify_wasm_string_by_native_addr(exec_env, name)) ||
@@ -371,6 +623,21 @@ int wasm_attach_bpf_program(wasm_exec_env_t exec_env,
             return -EFAULT;
         return (*bpf_programs)[program]->attach_bpf_program(name,
                                                             attach_target);
+    }
+    return -EINVAL;
+}
+
+int wasm_attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                               uint64_t program,
+                               char* name,
+                               int32_t target_fd) {
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
+    if (bpf_programs->find(program) != bpf_programs->end()) {
+        // Ensure that the string pointer passed from wasm program is valid
+        if (!verify_wasm_string_by_native_addr(exec_env, name))
+            return -EFAULT;
+        return (*bpf_programs)[program]->attach_bpf_program_fd(exec_env, name,
+                                                               target_fd);
     }
     return -EINVAL;
 }
@@ -383,8 +650,7 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env,
                          char* data,
                          int max_size,
                          int timeout_ms) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the buffer is valid and can hold the data received
         if (!verify_wasm_buffer_by_native_addr(exec_env, data,
@@ -399,8 +665,7 @@ int wasm_bpf_buffer_poll(wasm_exec_env_t exec_env,
 int wasm_bpf_map_fd_by_name(wasm_exec_env_t exec_env,
                             uint64_t program,
                             const char* name) {
-    bpf_program_manager* bpf_programs =
-        (bpf_program_manager*)wasm_runtime_get_user_data(exec_env);
+    bpf_program_manager* bpf_programs = &get_context(exec_env)->programs;
     if (bpf_programs->find(program) != bpf_programs->end()) {
         // Ensure that the string is valid
         if (!verify_wasm_string_by_native_addr(exec_env, name))
@@ -423,7 +688,12 @@ int wasm_bpf_map_operate(wasm_exec_env_t exec_env,
 }
 }
 
-int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
+int wasm_main_ex(unsigned char* buf,
+                 unsigned int size,
+                 int argc,
+                 char* argv[],
+                 const char** dirs,
+                 int dir_count) {
     char error_buf[128];
     int exit_code = 0;
     char* wasm_path = NULL;
@@ -441,6 +711,7 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
     static NativeSymbol native_symbols[] = {
         EXPORT_WASM_API_WITH_SIG(wasm_load_bpf_object, "(*~)I"),
         EXPORT_WASM_API_WITH_SIG(wasm_attach_bpf_program, "(I$$)i"),
+        EXPORT_WASM_API_WITH_SIG(wasm_attach_bpf_program_fd, "(I$i)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_buffer_poll, "(Iiii*~i)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_fd_by_name, "(I$)i"),
         EXPORT_WASM_API_WITH_SIG(wasm_bpf_map_operate, "(ii***I)i"),
@@ -460,6 +731,25 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         printf("Load wasm module failed. error: %s\n", error_buf);
         return -1;
     }
+    wasm_bpf_context context;
+    // Open a host descriptor for every directory up front, so a bad path
+    // fails startup with one clear message. The runtime itself injects the
+    // directories at guest fds 3, 4, 5... after instantiation; wasi-libc
+    // discovers preopens by walking from fd 3 until the first bad
+    // descriptor, so the numbers must stay contiguous.
+    for (int i = 0; i < dir_count; i++) {
+        int host_fd = open(dirs[i], O_RDONLY | O_DIRECTORY);
+        if (host_fd < 0) {
+            printf("Cannot open preopen directory %s: %s\n", dirs[i],
+                   strerror(errno));
+            return -1;
+        }
+        context.preopens.push_back({3 + i, host_fd, std::string(dirs[i])});
+    }
+    // WASI gets no preopens here: instantiation runs the module's own init
+    // code (_initialize, __post_instantiate, the start section), and no guest
+    // code may ever see a rights-carrying preopen. The directories are
+    // injected after instantiation, already sealed.
     wasm_runtime_set_wasi_args(module, NULL, 0, NULL, 0, NULL, 0, argv, argc);
     module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                            error_buf, sizeof(error_buf));
@@ -472,9 +762,11 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         printf("Create wasm execution environment failed.\n");
         return -1;
     }
-    bpf_program_manager prog_manager;
-    wasm_runtime_set_user_data(exec_env, &prog_manager);
+    wasm_runtime_set_user_data(exec_env, &context);
     wasm_runtime_set_module_inst(exec_env, module_inst);
+    if (inject_and_seal_preopens(module_inst, context.preopens) < 0) {
+        return -1;
+    }
     if (!(start_func = wasm_runtime_lookup_wasi_start_function(module_inst))) {
         printf("The start wasm function is not found.\n");
         return -1;
@@ -498,4 +790,8 @@ int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
         wasm_runtime_unload(module);
     wasm_runtime_destroy();
     return exit_code;
+}
+
+int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]) {
+    return wasm_main_ex(buf, size, argc, argv, NULL, 0);
 }

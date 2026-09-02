@@ -10,6 +10,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
@@ -71,6 +72,9 @@ class wasm_bpf_program {
     int bpf_map_fd_by_name(const char* name);
     int load_bpf_object(const void* obj_buf, size_t obj_buf_sz);
     int attach_bpf_program(const char* name, const char* attach_target);
+    int attach_bpf_program_fd(wasm_exec_env_t exec_env,
+                              const char* name,
+                              int target_fd);
     int bpf_buffer_poll(wasm_exec_env_t exec_env,
                         int fd,
                         int32_t sample_func,
@@ -84,6 +88,42 @@ class wasm_bpf_program {
 /// @brief A map to hold bpf programs handles. Instance of this type will be shared in a wasm program
 using bpf_program_manager =
     std::unordered_map<uint64_t, std::unique_ptr<wasm_bpf_program>>;
+
+/// @brief a directory preopened for the guest: the descriptor number the guest
+/// sees, a host descriptor the runtime opened for itself, and the path handed
+/// to the WASI layer, which is also what the prestat table reports back.
+struct preopened_dir {
+    int guest_fd;
+    int host_fd;
+    std::string wasi_path;
+};
+
+/// @brief what the host functions share through the execution environment's
+/// user data.
+struct wasm_bpf_context {
+    bpf_program_manager programs;
+    std::vector<preopened_dir> preopens;
+
+    wasm_bpf_context() = default;
+    wasm_bpf_context(const wasm_bpf_context&) = delete;
+    wasm_bpf_context& operator=(const wasm_bpf_context&) = delete;
+    /// closes the host descriptors held in `preopens`
+    ~wasm_bpf_context();
+};
+
+/// @brief what wasm_attach_bpf_program_fd does for a program. The decision is
+/// made from the section name before any descriptor is resolved.
+enum class fd_attach_action {
+    attach_cgroup_by_fd,
+    reject_xdp,
+    auto_attach,
+};
+
+/// @brief pick the action for a section. Runs before any descriptor is
+/// resolved, so it sees only whether a target was passed, never what it
+/// resolves to.
+fd_attach_action fd_attach_action_for(const char* section_name,
+                                      bool has_target_fd);
 
 enum bpf_map_cmd {
     _BPF_MAP_LOOKUP_ELEM = 1,
@@ -100,7 +140,20 @@ int bpf_map_operate(int fd,
                     uint64_t flags);
 extern "C" {
 /// The main entry, argc and argv will be passed to the wasm module.
+/// Preopens nothing; same as wasm_main_ex with no directories.
 int wasm_main(unsigned char* buf, unsigned int size, int argc, char* argv[]);
+/// The main entry with preopened directories. Each of the `dir_count` paths in
+/// `dirs` is preopened for the wasm module as an attach-target token: the guest
+/// can discover it and hold its descriptor, and cannot open, list, or change
+/// anything beneath it. The directories are injected with no rights only
+/// after instantiation has run the module's own init code, so no guest code
+/// ever sees a usable preopen.
+int wasm_main_ex(unsigned char* buf,
+                 unsigned int size,
+                 int argc,
+                 char* argv[],
+                 const char** dirs,
+                 int dir_count);
 }
 
 #endif
