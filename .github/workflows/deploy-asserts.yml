@@ -38,7 +38,7 @@ jobs:
             make /opt/wasi-sdk
             make tinygo
       - name: Cache
-        uses: actions/cache@v3.3.0
+        uses: actions/cache@v4
 
         with:
           path: |
