@@ -37,6 +37,7 @@ jobs:
           if: startsWith(matrix.example-name, 'go')
           run: |
             wget https://github.com/tinygo-org/tinygo/releases/download/v0.29.0/tinygo_0.29.0_amd64.deb
+            echo "99f0ef173e1236418eaf1069dd940202e1dce089219a8003ba931bfb17f0dcbd  tinygo_0.29.0_amd64.deb" | sha256sum --check -
             sudo dpkg -i tinygo_0.29.0_amd64.deb
             tinygo version
         - name: downcase REPO_OWNER
