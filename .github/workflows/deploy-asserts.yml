@@ -53,7 +53,7 @@ jobs:
         uses: actions/configure-pages@v1
         if: ${{ github.repository_owner == 'eunomia-bpf' }}
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v5
         if: ${{ github.repository_owner == 'eunomia-bpf' }}
         with:
           # Upload entire repository
