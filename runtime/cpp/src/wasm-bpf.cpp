@@ -45,7 +45,7 @@ typedef struct WASIContext {
     char* env_buf;
     char** env_list;
     uint32_t exit_code;
-}* wasi_ctx_t;
+} * wasi_ctx_t;
 wasi_ctx_t wasm_runtime_get_wasi_ctx(wasm_module_inst_t module_inst);
 /// Also private to WAMR's libc-wasi (declared in its posix.h, which is not on
 /// the export surface): the two calls its own instantiation loop uses to seat
