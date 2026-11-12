@@ -4,13 +4,10 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 
 use anyhow::{anyhow, Context};
-use wasi_common::{dir::DirCaps, file::FileCaps, I32Exit};
 use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
-// `Dir` and `sync::dir::Dir` are distinct types with the same name: the former is
-// `cap_std::fs::Dir`, the latter the `WasiDir` implementation that wraps it.
-use wasmtime_wasi::{
-    ambient_authority, sync::dir::Dir as WasiDirImpl, Dir as CapStdDir, WasiCtx, WasiCtxBuilder,
-};
+use wasmtime_wasi::{DirPerms, FilePerms};
+use wasmtime_wasi::preview1::{self, WasiP1Ctx};
+use wasmtime_wasi::{WasiCtxBuilder, I32Exit};
 
 use crate::add_bind_function_with_module;
 use crate::bpf::attach::{wasm_attach_bpf_program, wasm_attach_bpf_program_fd};
@@ -58,17 +55,17 @@ impl WasmBpfModuleRunner {
             .to_owned();
         let engine = Engine::new(&engine_config)?;
         let mut linker = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi)
+        preview1::add_to_linker_sync(&mut linker, |s: &mut AppState| &mut s.wasi)
             .with_context(|| anyhow!("Failed to add wasmtime_wasi to linker"))?;
 
-        let mut wasi = WasiCtxBuilder::new()
+        let mut wasi_builder = WasiCtxBuilder::new();
+        wasi_builder
             .stdin(config.stdin)
             .stdout(config.stdout)
             .stderr(config.stderr)
-            .args(args)
-            .with_context(|| anyhow!("Failed to pass arguments to Wasm program"))?
-            .build();
-        let preopen_dirs = preopen_config_dirs(&mut wasi, &config.preopen_dirs)?;
+            .args(args);
+        let preopen_dirs = preopen_config_dirs(&mut wasi_builder, &config.preopen_dirs)?;
+        let wasi = wasi_builder.build_p1();
         let (tx, rx) = mpsc::channel::<ProgramOperation>();
         let mut store = Store::new(
             &engine,
@@ -76,10 +73,10 @@ impl WasmBpfModuleRunner {
         );
 
         store.set_epoch_deadline(1);
-        store.epoch_deadline_callback(move |v| {
+        store.epoch_deadline_callback(move |mut v| {
             // There should call `unwrap`.
-            match v.operation_rx.recv()? {
-                ProgramOperation::Resume => Ok(1),
+            match v.data_mut().operation_rx.recv()? {
+                ProgramOperation::Resume => Ok(wasmtime::UpdateDeadline::Continue(1)),
                 ProgramOperation::Terminate => Err(anyhow!("Wasm program terminated")),
             }
         });
@@ -148,37 +145,39 @@ impl WasmBpfModuleRunner {
 ///
 /// Preopens have to be pushed consecutively and before anything else touches the descriptor
 /// table, since wasi-libc discovers them by walking fd 3, 4, 5... until the first failure.
-/// `push_dir` is `push_preopened_dir` that hands back the assigned descriptor, which is what keys
-/// the host handles.
+/// wasmtime-wasi 36 no longer reports the descriptor a preopen was assigned, so it is derived
+/// from the position in `dirs` instead.
 pub(crate) fn preopen_config_dirs(
-    wasi: &mut WasiCtx,
+    builder: &mut WasiCtxBuilder,
     dirs: &[(PathBuf, PathBuf)],
 ) -> anyhow::Result<HashMap<u32, File>> {
     let mut preopen_dirs: HashMap<u32, File> = HashMap::new();
-    for (host_path, guest_path) in dirs {
-        let cap_dir = CapStdDir::open_ambient_dir(host_path, ambient_authority())
-            .with_context(|| anyhow!("Failed to preopen host directory {:?}", host_path))?;
-        // cap-std opens directories with `O_PATH` on Linux, so its descriptor cannot be reused
-        // host-side; open a plain read-only handle for that. The two opens leave a TOCTOU window,
-        // but both act on an operator-supplied path, the same trust level as the cgroup open in
-        // `bpf::attach`.
+    // Preview1 assigns descriptors in order: stdin=0, stdout=1, stderr=2, then one
+    // per preopen from 3 upward, so the number a guest sees for the Nth preopen is
+    // N + 3. Nothing else is registered before them, and a preopen cannot be closed
+    // or renumbered, so that number stays valid for the life of the store.
+    for (index, (host_path, guest_path)) in dirs.iter().enumerate() {
+        builder
+            .preopened_dir(
+                host_path,
+                guest_path.to_string_lossy(),
+                DirPerms::empty(),
+                FilePerms::empty(),
+            )
+            .with_context(|| anyhow!("Failed to preopen {:?} at {:?}", host_path, guest_path))?;
+        // cap-std opens directories with `O_PATH` on Linux, so its descriptor cannot be
+        // reused host-side; open a plain read-only handle for that. The two opens leave
+        // a TOCTOU window, but both act on an operator-supplied path, the same trust
+        // level as the cgroup open in `bpf::attach`.
         let host_handle = OpenOptions::new()
             .read(true)
             .open(host_path)
             .with_context(|| anyhow!("Failed to open host directory {:?}", host_path))?;
-        // The guest needs the preopen only as a token to hand to wasm_attach_bpf_program_fd.
-        // Preopen discovery (fd_prestat_get / fd_prestat_dir_name) is not gated on rights in
-        // wasi-common, so empty capabilities keep discovery working while path_open, fd_readdir,
-        // and any create or write beneath the directory fail.
-        let guest_fd = wasi
-            .push_dir(
-                Box::new(WasiDirImpl::from_cap_std(cap_dir)),
-                DirCaps::empty(),
-                FileCaps::empty(),
-                guest_path.clone(),
-            )
-            .with_context(|| anyhow!("Failed to preopen {:?} at {:?}", host_path, guest_path))?;
-        preopen_dirs.insert(guest_fd, host_handle);
+        // The guest needs the preopen only as a token to hand to
+        // wasm_attach_bpf_program_fd. Empty capabilities keep discovery
+        // (fd_prestat_get / fd_prestat_dir_name) working while path_open, fd_readdir and
+        // any create or write beneath the directory fail.
+        preopen_dirs.insert(3 + index as u32, host_handle);
     }
     Ok(preopen_dirs)
 }

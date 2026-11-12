@@ -110,7 +110,7 @@ fn test_receive_wasm_bpf_module_output() {
     let config = Config::new(
         String::from("go-callback"),
         String::from("callback-wrapper"),
-        Box::new(stdio::stdin()),
+        Box::new(wasmtime_wasi::cli::stdin()),
         Box::new(stdout.clone()),
         Box::new(stderr.clone()),
     );
@@ -145,7 +145,7 @@ fn test_pause_and_resume_wasm_program() {
     let config = Config::new(
         String::from("go-callback"),
         String::from("callback-wrapper"),
-        Box::new(stdio::stdin()),
+        Box::new(wasmtime_wasi::cli::stdin()),
         Box::new(stdout.clone()),
         Box::new(stderr.clone()),
     );

@@ -31,17 +31,11 @@ pub(crate) fn resolve_guest_fd(caller: &mut CallerType, guest_fd: u32) -> Result
 /// without a `wasmtime::Caller`, which cannot be constructed outside a host call. A
 /// `&mut AppState` reborrows to the shared reference taken here.
 pub(crate) fn resolve_guest_fd_in_state(state: &AppState, guest_fd: u32) -> Result<RawFd> {
-    // Read the table through the `wasi.table` field rather than `WasiCtx::table()`,
-    // which takes `&mut self`; a shared borrow leaves `preopen_dirs` readable below.
-    if !state.wasi.table.contains_key(guest_fd) {
-        bail!("fd {} is not open in the guest", guest_fd);
-    }
-    // wasi-common 5.0.1 keeps `FileEntry` and `DirEntry` `pub(crate)` and re-exports
-    // neither, so an out-of-crate caller cannot ask the table what kind of resource a
-    // descriptor holds, nor reach the `dyn WasiFile`/`dyn WasiDir` behind it. This
-    // lookup discriminates instead: it holds exactly the directories the host opened
-    // for `Config::preopen_dirs`. wasi-common refuses to close or renumber a preopen,
-    // so a number recorded at preopen time still denotes that same directory.
+    // The map holds exactly the directories the host opened for
+    // `Config::preopen_dirs`, keyed by the descriptor preview1 assigns them. A
+    // preopen cannot be closed or renumbered, so a number recorded at preopen time
+    // still denotes that same directory; anything else, including stdio and
+    // descriptors the guest opened itself, is absent and therefore rejected.
     let host_dir = match state.preopen_dirs.get(&guest_fd) {
         Some(v) => v,
         None => bail!("fd {} is not a preopened directory", guest_fd),
