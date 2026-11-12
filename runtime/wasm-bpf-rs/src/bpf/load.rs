@@ -3,7 +3,7 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, RwLock};
 
 use libbpf_rs::ObjectBuilder;
 use log::debug;
@@ -58,7 +58,7 @@ pub fn wasm_load_bpf_object(
     state.object_map.insert(
         next_id,
         WrapperObject {
-            object: Rc::new(RefCell::new(object)),
+            object: Arc::new(RwLock::new(object)),
             poll_buffer: None,
         },
     );

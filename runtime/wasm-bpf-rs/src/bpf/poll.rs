@@ -3,7 +3,7 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{sync::{Arc, RwLock}, time::Duration};
 
 use anyhow::{anyhow, Result};
 use libbpf_rs::{MapType, PerfBufferBuilder, RingBufferBuilder};
@@ -51,7 +51,7 @@ pub fn wasm_bpf_buffer_poll(
             return -1;
         }
     };
-    let object = object_rc.borrow();
+    let object = object_rc.read().unwrap();
     let map = if let Some(map) = object.maps_iter().find(|v| v.fd() == fd) {
         map
     } else {
@@ -61,13 +61,13 @@ pub fn wasm_bpf_buffer_poll(
     let object = ensure_program_mut_by_caller!(caller, program);
     if object.poll_buffer.is_none() {
         // Create the poller if it's not created
-        let result_recv = Rc::new(RefCell::new(Some(Vec::<u8>::new())));
+        let result_recv = Arc::new(RwLock::new(Some(Vec::<u8>::new())));
         let poll_impl = match map.map_type() {
             MapType::PerfEventArray => {
                 let local_cb = {
                     let result_recv = result_recv.clone();
                     Box::new(move |_cpu: i32, data: &[u8]| {
-                        result_recv.borrow_mut().replace(data.to_vec());
+                        result_recv.write().unwrap().replace(data.to_vec());
                     })
                 };
                 let perf_buffer = PerfBufferContainerTryBuilder {
@@ -91,7 +91,7 @@ pub fn wasm_bpf_buffer_poll(
                 let local_cb = {
                     let result_recv = result_recv.clone();
                     Box::new(move |data: &[u8]| -> i32 {
-                        result_recv.borrow_mut().replace(data.to_vec());
+                        result_recv.write().unwrap().replace(data.to_vec());
                         0
                     })
                 };
@@ -131,7 +131,7 @@ pub fn wasm_bpf_buffer_poll(
     let result_container = {
         let poller = object.poll_buffer.as_ref().unwrap();
         // Clean result
-        poller.result_container.borrow_mut().take();
+        poller.result_container.write().unwrap().take();
         match &poller.inner {
             PollBufferImpl::RingBuf(rb) => {
                 if let Err(e) = rb
@@ -155,7 +155,7 @@ pub fn wasm_bpf_buffer_poll(
         poller.result_container.clone()
     };
     // Here we could try to extract the result
-    if let Some(v) = result_container.borrow_mut().take() {
+    if let Some(v) = result_container.write().unwrap().take() {
         let memory = match caller.get_memory() {
             Err(e) => {
                 error!("Failed to get exported memory: {}", e);

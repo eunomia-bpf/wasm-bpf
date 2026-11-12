@@ -17,8 +17,7 @@ use anyhow::anyhow;
 use handle::WasmProgramHandle;
 use runner::WasmBpfModuleRunner;
 use state::AppState;
-use wasi_common::WasiFile;
-use wasmtime_wasi::stdio;
+use wasmtime_wasi::cli::{IsTerminal, StdinStream, StdoutStream};
 const MAIN_MODULE_NAME: &str = "main";
 const POLL_WRAPPER_FUNCTION_NAME: &str = "wasm_bpf_buffer_poll";
 
@@ -35,11 +34,11 @@ pub struct Config {
     /// Wrapper module name for go sdk, for example "callback-wrapper"
     pub wrapper_module_name: String,
     /// stdin file for receiving data from the host
-    pub stdin: Box<dyn WasiFile>,
+    pub stdin: Box<dyn StdinStream + Sync>,
     /// stdout file for sending data to the host
-    pub stdout: Box<dyn WasiFile>,
+    pub stdout: Box<dyn StdoutStream + Sync>,
     /// stderr file for sending error to the host
-    pub stderr: Box<dyn WasiFile>,
+    pub stderr: Box<dyn StdoutStream + Sync>,
     /// Host directories to preopen for the Wasm program, as `(host_path, guest_path)` pairs.
     /// A preopen is an attach-target token, not filesystem access; see
     /// [`Config::add_preopen_dir`]. Empty by default.
@@ -51,9 +50,9 @@ impl Default for Config {
         Self {
             callback_export_name: String::from("callback-wrapper"),
             wrapper_module_name: String::from("go-callback"),
-            stdin: Box::new(stdio::stdin()),
-            stdout: Box::new(stdio::stdout()),
-            stderr: Box::new(stdio::stderr()),
+            stdin: Box::new(wasmtime_wasi::cli::stdin()),
+            stdout: Box::new(wasmtime_wasi::cli::stdout()),
+            stderr: Box::new(wasmtime_wasi::cli::stderr()),
             preopen_dirs: Vec::new(),
         }
     }
@@ -83,9 +82,9 @@ impl Config {
     pub fn new(
         callback_export_name: String,
         wrapper_module_name: String,
-        stdin: Box<dyn WasiFile>,
-        stdout: Box<dyn WasiFile>,
-        stderr: Box<dyn WasiFile>,
+        stdin: Box<dyn StdinStream + Sync>,
+        stdout: Box<dyn StdoutStream + Sync>,
+        stderr: Box<dyn StdoutStream + Sync>,
     ) -> Self {
         Self {
             callback_export_name,
