@@ -3,7 +3,10 @@
 //! Copyright (c) 2023, eunomia-bpf
 //! All rights reserved.
 //!
-use std::{sync::{Arc, RwLock}, time::Duration};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 use libbpf_rs::{MapType, PerfBufferBuilder, RingBufferBuilder};

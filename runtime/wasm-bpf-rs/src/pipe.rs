@@ -70,10 +70,16 @@ impl<W: Write + Send + Sync + 'static> AsyncWrite for PipeWriter<W> {
 
 impl<W: Write + Send + Sync + 'static> std::io::Write for PipeWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.inner.write().map_err(|e| io::Error::other(e.to_string()))?.write(buf)
+        self.inner
+            .write()
+            .map_err(|e| io::Error::other(e.to_string()))?
+            .write(buf)
     }
     fn flush(&mut self) -> io::Result<()> {
-        self.inner.write().map_err(|e| io::Error::other(e.to_string()))?.flush()
+        self.inner
+            .write()
+            .map_err(|e| io::Error::other(e.to_string()))?
+            .flush()
     }
 }
 
