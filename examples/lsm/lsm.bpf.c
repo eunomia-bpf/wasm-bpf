@@ -18,7 +18,7 @@ int path_rmdir(const struct path* dir, struct dentry* dentry) {
     // 6.x/7.x, while qstr.name keeps the same offset in both. CO-RE cannot
     // relocate a field the running kernel does not have, so a direct
     // &d_iname[0] read fails to load on a newer kernel.
-    const unsigned char *p = BPF_CORE_READ(dir, dentry, d_name.name);
+    const unsigned char* p = BPF_CORE_READ(dir, dentry, d_name.name);
     bpf_probe_read_kernel(name, sizeof(name), p);
     name[sizeof(name) - 1] = '\0';
 
