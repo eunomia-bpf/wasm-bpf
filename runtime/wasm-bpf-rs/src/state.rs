@@ -4,16 +4,14 @@
 //! All rights reserved.
 //!
 use std::{
-    cell::{Ref, RefCell, RefMut},
     collections::HashMap,
     fs::File,
-    rc::Rc,
-    sync::mpsc,
+    sync::{mpsc, Arc, RwLock},
 };
 
 use libbpf_rs::{Link, Object, PerfBuffer, RingBuffer};
 use wasmtime::Caller;
-use wasmtime_wasi::WasiCtx;
+use wasmtime_wasi::preview1::WasiP1Ctx;
 
 use crate::handle::ProgramOperation;
 
@@ -58,35 +56,35 @@ pub struct PollBuffer {
     /// The implementation
     pub inner: PollBufferImpl,
     /// The result container
-    pub result_container: Rc<RefCell<Option<Vec<u8>>>>,
+    pub result_container: Arc<RwLock<Option<Vec<u8>>>>,
 }
 /// A `Program`, holding a bpf Object and a poller
 pub struct WrapperObject {
-    // Put Object in a Rc<RefCell<T>> to avoid holding a reference to WrapperObject
+    // Put Object in an Arc<RwLock<T>> to avoid holding a reference to WrapperObject
     /// The ebpf Object
-    pub object: Rc<RefCell<Object>>,
+    pub object: Arc<RwLock<Object>>,
     /// The poller; It will be set when the first time to call the sampling function
     pub poll_buffer: Option<PollBuffer>,
 }
 
 impl WrapperObject {
     /// Get a reference pointer to the EbpfObject
-    pub fn get_object_rc(&self) -> Rc<RefCell<Object>> {
+    pub fn get_object_rc(&self) -> Arc<RwLock<Object>> {
         self.object.clone()
     }
     /// Get a reference to the Object
-    pub fn get_object(&self) -> Ref<Object> {
-        self.object.borrow()
+    pub fn get_object(&self) -> std::sync::RwLockReadGuard<'_, Object> {
+        self.object.read().unwrap()
     }
     /// Get a mutable reference to the Object
-    pub fn get_object_mut(&self) -> RefMut<Object> {
-        self.object.borrow_mut()
+    pub fn get_object_mut(&self) -> std::sync::RwLockWriteGuard<'_, Object> {
+        self.object.write().unwrap()
     }
 }
 
 /// The application state
 pub struct AppState {
-    pub(crate) wasi: WasiCtx,
+    pub(crate) wasi: WasiP1Ctx,
     pub(crate) next_object_id: u64,
     pub(crate) object_map: HashMap<u64, WrapperObject>,
     pub(crate) opened_files: Vec<File>,
@@ -105,7 +103,7 @@ pub struct AppState {
 impl AppState {
     /// Create an AppState
     pub fn new(
-        wasi: WasiCtx,
+        wasi: WasiP1Ctx,
         callback_func_name: String,
         operation_rx: mpsc::Receiver<ProgramOperation>,
         preopen_dirs: HashMap<u32, File>,
@@ -123,5 +121,22 @@ impl AppState {
         }
     }
 }
+
+// `wasmtime-wasi` 36's `preview1::add_to_linker_sync` requires `T: Send`, and
+// `AppState` holds libbpf handles (`Object`, `PerfBuffer`, `Link`) whose Rust
+// wrappers are `!Send` even though the C objects they own are only ever touched
+// from the thread that created them.
+//
+// That is exactly how this runtime uses them: a `Store<AppState>` is built and
+// dropped inside one thread — `run_wasm_bpf_module_async` constructs it in the
+// spawned thread and never shares it — so no libbpf handle crosses a thread
+// boundary. The `Arc`s that remain (`object`, `result_container`) are shared
+// between the store and the perf/ring buffer callbacks, which the same thread
+// drives.
+//
+// Safety: every field is reachable only from the thread that owns the `Store`.
+// Moving a `Store<AppState>` to another thread before use is sound because no
+// libbpf handle has been used yet; after use the store is not shared.
+unsafe impl Send for AppState {}
 
 pub(crate) type CallerType<'a> = Caller<'a, AppState>;

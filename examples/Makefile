@@ -4,6 +4,13 @@ all: test
 
 TEST_TIME := 3
 
+# The vendored libbpf and bpftool are older than the host gcc on the CI
+# runners, which reports -Wdiscarded-qualifiers in libbpf's kallsyms parsing
+# and turns it into an error through libbpf's own -Werror. Downgrade just that
+# warning for the whole subtree, so the bootstrap of bpftool here matches what
+# runtime/cpp/CMakeLists.txt already does for its own copy.
+export EXTRA_CFLAGS += -Wno-error=discarded-qualifiers
+
 # test with the files in bpf-loader
 TEST_CASES_DIRS=$(shell ls -l . | grep ^d | grep -v 'go-lsm\|go-execve' | awk '{print $$9}')
 test: $(TEST_CASES_DIRS)

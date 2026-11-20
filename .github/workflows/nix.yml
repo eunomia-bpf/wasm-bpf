@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3.3.0
-    - uses: nixbuild/nix-quick-install-action@v22
+    # v22 pins Nix 2.14.1, which cannot parse the `tarball` input node with
+    # `lastModified` that a current Nix writes into flake.lock. v35's default
+    # Nix reads that lock and is new enough for the nixpkgs revision it pins.
+    - uses: nixbuild/nix-quick-install-action@v35
       with:
+        nix_version: 2.34.7
         nix_conf: |
           experimental-features = nix-command flakes
           access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}

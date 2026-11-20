@@ -8,7 +8,12 @@
     , naersk
     , nixpkgs
     }:
-    flake-utils.lib.eachDefaultSystem (system:
+    # Each of these is named explicitly rather than taken from
+    # eachDefaultSystem: the nixpkgs this flake now pins dropped
+    # x86_64-darwin, so `legacyPackages.x86_64-darwin` throws and
+    # `nix flake show --all-systems` fails evaluation. The other three are
+    # flake-utils' defaults.
+    flake-utils.lib.eachSystem [ "aarch64-darwin" "aarch64-linux" "x86_64-linux" ] (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
       toolchain = with fenix.packages.${system}; combine [

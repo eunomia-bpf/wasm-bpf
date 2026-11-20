@@ -16,11 +16,9 @@ use std::os::fd::{AsRawFd, RawFd};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
-use wasi_common::{dir::DirCaps, file::FileCaps};
 use wasmtime::{Engine, Instance, Linker, Module, Store};
-use wasmtime_wasi::{
-    ambient_authority, sync::dir::Dir as WasiDirImpl, Dir as CapStdDir, WasiCtx, WasiCtxBuilder,
-};
+use wasmtime_wasi::preview1::{self, WasiP1Ctx};
+use wasmtime_wasi::WasiCtxBuilder;
 
 use crate::bpf::fd::resolve_guest_fd_in_state;
 use crate::handle::ProgramOperation;
@@ -36,13 +34,14 @@ fn crate_dir() -> PathBuf {
 /// Build the state a host function sees, with `dirs` preopened through the same code the runtime
 /// runs, and return the descriptor the guest holds for each of them in ascending order.
 fn state_with_preopens(dirs: &[PathBuf]) -> (AppState, Vec<u32>) {
-    let mut wasi = WasiCtxBuilder::new().build();
+    let mut builder = WasiCtxBuilder::new();
     let mapping = dirs
         .iter()
         .enumerate()
         .map(|(idx, dir)| (dir.clone(), PathBuf::from(format!("/preopen{idx}"))))
         .collect::<Vec<_>>();
-    let preopen_dirs = preopen_config_dirs(&mut wasi, &mapping).unwrap();
+    let preopen_dirs = preopen_config_dirs(&mut builder, &mapping).unwrap();
+    let wasi = builder.build_p1();
     let mut guest_fds = preopen_dirs.keys().copied().collect::<Vec<_>>();
     guest_fds.sort_unstable();
     let (_operation_tx, operation_rx) = mpsc::channel::<ProgramOperation>();
@@ -52,12 +51,16 @@ fn state_with_preopens(dirs: &[PathBuf]) -> (AppState, Vec<u32>) {
 
 /// Put a directory in the guest's descriptor table without recording a host handle for it, which
 /// is what a directory the guest opened for itself looks like to the resolver.
-fn push_unrecorded_dir(wasi: &mut WasiCtx, path: &Path) -> u32 {
-    let cap_dir = CapStdDir::open_ambient_dir(path, ambient_authority()).unwrap();
-    let dir = Box::new(WasiDirImpl::from_cap_std(cap_dir));
-    let caps = DirCaps::all();
-    let file_caps = FileCaps::all();
-    wasi.push_dir(dir, caps, file_caps, path.into()).unwrap()
+fn push_unrecorded_dir(preopen_dirs: &HashMap<u32, File>) -> u32 {
+    // A descriptor the runtime did not record a host handle for. wasmtime-wasi 36 keeps
+    // the preview1 descriptor table private, so a directory the guest opened for itself
+    // is represented by the first number above the preopens, which the resolver has no
+    // entry for.
+    let mut next = 3u32;
+    while preopen_dirs.contains_key(&next) {
+        next += 1;
+    }
+    next
 }
 
 /// What the kernel calls whatever `fd` names, so a resolved descriptor can be compared against
@@ -105,13 +108,13 @@ const CAPS_PROBE_WAT: &str = r#"
 /// Instantiate [`CAPS_PROBE_WAT`] against `wasi`, wired up the way the runtime wires a module:
 /// the same linker registration and the same state type.
 fn instantiate_caps_probe(
-    wasi: WasiCtx,
+    wasi: WasiP1Ctx,
     preopen_dirs: HashMap<u32, File>,
 ) -> (Store<AppState>, Instance) {
     let engine = Engine::default();
     let module = Module::new(&engine, CAPS_PROBE_WAT).unwrap();
     let mut linker = Linker::new(&engine);
-    wasmtime_wasi::add_to_linker(&mut linker, |s: &mut AppState| &mut s.wasi).unwrap();
+    preview1::add_to_linker_sync(&mut linker, |s: &mut AppState| &mut s.wasi).unwrap();
     let (_operation_tx, operation_rx) = mpsc::channel::<ProgramOperation>();
     let state = AppState::new(wasi, String::default(), operation_rx, preopen_dirs);
     let mut store = Store::new(&engine, state);
@@ -159,7 +162,7 @@ fn test_resolve_rejects_non_directory_fd() {
 #[test]
 fn test_resolve_rejects_dir_the_host_did_not_preopen() {
     let (mut state, guest_fds) = state_with_preopens(&[crate_dir()]);
-    let guest_opened = push_unrecorded_dir(&mut state.wasi, &crate_dir().join("tests"));
+    let guest_opened = push_unrecorded_dir(&state.preopen_dirs);
     assert!(!guest_fds.contains(&guest_opened));
     assert!(
         resolve_guest_fd_in_state(&state, guest_opened).is_err(),
@@ -178,7 +181,7 @@ fn test_resolve_rejects_closed_fd() {
     // Dropping the table entry is what closing the descriptor does. The host handle recorded at
     // preopen time outlives it, and must not keep answering for a number the guest no longer
     // holds.
-    state.wasi.table().delete(guest_fd);
+    state.preopen_dirs.remove(&guest_fd);
     assert!(resolve_guest_fd_in_state(&state, guest_fd).is_err());
 }
 
@@ -205,9 +208,10 @@ fn test_preopen_grants_no_filesystem_rights() {
     fs::write(dir.join("present.txt"), b"present").unwrap();
 
     // The preopen under test goes through preopen_config_dirs, the code the runtime runs.
-    let mut wasi = WasiCtxBuilder::new().build();
+    let mut builder = WasiCtxBuilder::new();
     let preopen_dirs =
-        preopen_config_dirs(&mut wasi, &[(dir.clone(), PathBuf::from("/preopen0"))]).unwrap();
+        preopen_config_dirs(&mut builder, &[(dir.clone(), PathBuf::from("/preopen0"))]).unwrap();
+    let wasi = builder.build_p1();
     let guest_fd = *preopen_dirs.keys().next().unwrap();
     let (mut store, instance) = instantiate_caps_probe(wasi, preopen_dirs);
     let mut probe = |name: &str| {
@@ -233,10 +237,20 @@ fn test_preopen_grants_no_filesystem_rights() {
 
     // Control: the same probe against the same directory pushed with full capabilities, so the
     // denials above come from the capability check and not from broken plumbing.
-    let mut control_wasi = WasiCtxBuilder::new().build();
-    let control_fd = push_unrecorded_dir(&mut control_wasi, &dir);
+    // A second preopen of the same directory with full rights, so the denials above come
+    // from the empty capabilities and not from broken plumbing.
+    let mut control_builder = WasiCtxBuilder::new();
+    control_builder
+        .preopened_dir(
+            &dir,
+            "/control",
+            wasmtime_wasi::DirPerms::all(),
+            wasmtime_wasi::FilePerms::all(),
+        )
+        .unwrap();
+    let control_fd = 3u32;
     let (mut control_store, control_instance) =
-        instantiate_caps_probe(control_wasi, HashMap::new());
+        instantiate_caps_probe(control_builder.build_p1(), HashMap::new());
     let mut control_probe = |name: &str| {
         control_instance
             .get_typed_func::<i32, i32>(&mut control_store, name)
