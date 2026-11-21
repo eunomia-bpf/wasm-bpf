@@ -15,7 +15,7 @@ use wasmtime::Val;
 
 use crate::{
     bpf::{EINVAL, ENOENT},
-    ensure_enough_memory, ensure_program_mut_by_caller, ensure_program_mut_by_state,
+    ensure_enough_memory, ensure_program_mut_by_caller,
     state::{
         CallerType, PerfBufferContainerTryBuilder, PollBuffer, PollBufferImpl,
         RingBufferContainerTryBuilder,

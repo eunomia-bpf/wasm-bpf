@@ -14,10 +14,6 @@ const INDIRECT_TABLE_NAME: &str = "__indirect_function_table";
 pub trait CallerUtils {
     fn get_memory(&mut self) -> anyhow::Result<Memory>;
     fn get_indirect_call_table(&mut self) -> anyhow::Result<Table>;
-    // Terminated zero won't be put in the returned Vec
-    fn read_wasm_string(&mut self, offset: usize) -> anyhow::Result<Vec<u8>>;
-    // Terminated zero won't be included
-    fn read_wasm_string_slice(&mut self, offset: usize) -> anyhow::Result<&[u8]>;
     // Terminated zero will be included
     fn read_wasm_string_slice_include_zero(&mut self, offset: usize) -> anyhow::Result<&[u8]>;
     fn read_zero_terminated_str(&mut self, offset: usize) -> anyhow::Result<&str>;
@@ -32,6 +28,7 @@ pub trait CallerUtils {
     /// - The offset is within valid memory bounds
     /// - The memory at the given offset is legitimately mutable (WebAssembly linear memory is mutable)
     /// - No immutable references to this memory exist during the lifetime of this pointer
+    ///
     /// Violating these requirements results in undefined behavior.
     unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8;
 }
@@ -57,32 +54,6 @@ impl CallerUtils for Caller<'_, AppState> {
         })?;
         Ok(table)
     }
-    fn read_wasm_string(&mut self, offset: usize) -> anyhow::Result<Vec<u8>> {
-        let memory = self.get_memory()?;
-        let mut buf = vec![];
-        let mut at = offset;
-        let mut curr = vec![0u8];
-        loop {
-            memory.read(&mut *self, at, &mut curr).with_context(|| {
-                anyhow!(
-                    "Failed to access byte at {}, may be memory index out of bound",
-                    at
-                )
-            })?;
-            if curr[0] == 0 {
-                break;
-            } else {
-                at += 1;
-                buf.push(curr[0]);
-            }
-        }
-        Ok(buf)
-    }
-
-    fn read_wasm_string_slice(&mut self, offset: usize) -> anyhow::Result<&[u8]> {
-        self.read_wasm_string_slice_include_zero(offset)
-            .map(|v| &v[..=v.len() - 2])
-    }
 
     fn read_wasm_string_slice_include_zero(&mut self, offset: usize) -> anyhow::Result<&[u8]> {
         let memory = self.get_memory()?;
@@ -101,7 +72,7 @@ impl CallerUtils for Caller<'_, AppState> {
                 at += 1;
             }
         }
-        return Ok(&memory.data(self)[offset..=at]);
+        Ok(&memory.data(self)[offset..=at])
     }
 
     fn read_zero_terminated_str(&mut self, offset: usize) -> anyhow::Result<&str> {
@@ -109,9 +80,9 @@ impl CallerUtils for Caller<'_, AppState> {
             .read_wasm_string_slice_include_zero(offset)
             .with_context(|| anyhow!("Failed to read byte slice"))?;
         let c_str = CStr::from_bytes_with_nul(data_slice).unwrap();
-        return c_str
+        c_str
             .to_str()
-            .with_context(|| anyhow!("Failed to decode bytes into utf8 str"));
+            .with_context(|| anyhow!("Failed to decode bytes into utf8 str"))
     }
 
     unsafe fn raw_pointer_at_unchecked(&mut self, offset: usize) -> *const u8 {
@@ -121,7 +92,7 @@ impl CallerUtils for Caller<'_, AppState> {
 
     unsafe fn raw_mut_pointer_at_unchecked(&mut self, offset: usize) -> *mut u8 {
         let memory = self.get_memory().expect("Expected memory exported");
-        memory.data_ptr(self).add(offset) as *mut u8
+        memory.data_ptr(self).add(offset)
     }
 }
 
