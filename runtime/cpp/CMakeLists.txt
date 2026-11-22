@@ -179,12 +179,18 @@ endif()
 
 # Build vendored libbpf
 include(ExternalProject)
+# The vendored libbpf predates the const-correctness fixes in its kallsyms
+# parsing, so a newer host gcc reports -Wdiscarded-qualifiers there and the
+# library's own -Werror turns that into a build failure. Downgrade just that
+# warning rather than editing the submodule; clang accepts the flag too (it is
+# listed as -Wno-unknown-warning-option-safe in libbpf's own CFLAGS).
 ExternalProject_Add(libbpf
   PREFIX libbpf
   SOURCE_DIR ${LIBBPF_SOURCE_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND make
     BUILD_STATIC_ONLY=1
+    EXTRA_CFLAGS=-Wno-error=discarded-qualifiers
     OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
     DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
     INCLUDEDIR=
