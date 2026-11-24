@@ -167,7 +167,7 @@ pub fn wasm_attach_bpf_program_fd(
         let object = ensure_program_mut_by_state!(state, program);
         object.get_object_rc()
     };
-    let mut object_guard = object_rc.borrow_mut();
+    let mut object_guard = object_rc.write().unwrap();
     let prog = match object_guard.prog_mut(&name_str) {
         Some(v) => v,
         None => {

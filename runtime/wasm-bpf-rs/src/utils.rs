@@ -143,12 +143,12 @@ impl FunctionQuickCall for CallerType<'_> {
             .get_indirect_call_table()
             .expect("Indirect call table expected!");
         let item = table
-            .get(&mut *self, index)
+            .get(&mut *self, u64::from(index))
             .with_context(|| anyhow!("No func with index {} found", index))?;
-        let func = item
-            .funcref()
-            .with_context(|| anyhow!("Expect element with index {} to be a function", index))?
-            .with_context(|| anyhow!("Invalid type, function expected"))?;
+        let func = match item {
+            wasmtime::Ref::Func(Some(f)) => f,
+            _ => bail!("Expect element with index {} to be a function", index),
+        };
         let ret_val = func
             .typed::<Params, Return>(&mut *self)
             .with_context(|| anyhow!("Invalid function type provides"))?
