@@ -205,7 +205,7 @@ pub fn wasm_bpf_buffer_poll(
                 Err(e) => {
                     error!(
                         "Failed to perform indirect call when polling: {} ; {}\n{}",
-                        e.to_string(),
+                        e,
                         e.root_cause(),
                         e.backtrace()
                     );
