@@ -23,7 +23,7 @@ pub fn wasm_load_bpf_object(
 ) -> u64 {
     debug!("Load bpf object caller");
     let memory = caller.get_memory().expect("Expected exported `memory`");
-    let mut buf = vec![0u8];
+    let mut buf = [0u8];
     if let Err(err) = memory.read(
         &mut caller,
         obj_buf as usize + obj_buf_size as usize - 1,
@@ -52,7 +52,7 @@ pub fn wasm_load_bpf_object(
             return 0;
         }
     };
-    let mut state = caller.data_mut();
+    let state = caller.data_mut();
     let next_id = state.next_object_id;
     state.next_object_id += 1;
     state.object_map.insert(

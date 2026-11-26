@@ -15,7 +15,7 @@ use wasmtime::Val;
 
 use crate::{
     bpf::{EINVAL, ENOENT},
-    ensure_enough_memory, ensure_program_mut_by_caller, ensure_program_mut_by_state,
+    ensure_enough_memory, ensure_program_mut_by_caller,
     state::{
         CallerType, PerfBufferContainerTryBuilder, PollBuffer, PollBufferImpl,
         RingBufferContainerTryBuilder,
@@ -205,7 +205,7 @@ pub fn wasm_bpf_buffer_poll(
                 Err(e) => {
                     error!(
                         "Failed to perform indirect call when polling: {} ; {}\n{}",
-                        e.to_string(),
+                        e,
                         e.root_cause(),
                         e.backtrace()
                     );

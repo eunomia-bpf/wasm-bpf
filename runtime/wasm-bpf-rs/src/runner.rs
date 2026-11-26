@@ -5,7 +5,7 @@ use std::sync::mpsc;
 
 use anyhow::{anyhow, Context};
 use wasmtime::{Engine, IntoFunc, Linker, Module, Store, TypedFunc};
-use wasmtime_wasi::preview1::{self, WasiP1Ctx};
+use wasmtime_wasi::preview1;
 use wasmtime_wasi::{DirPerms, FilePerms};
 use wasmtime_wasi::{I32Exit, WasiCtxBuilder};
 

@@ -17,7 +17,7 @@ use anyhow::anyhow;
 use handle::WasmProgramHandle;
 use runner::WasmBpfModuleRunner;
 use state::AppState;
-use wasmtime_wasi::cli::{IsTerminal, StdinStream, StdoutStream};
+use wasmtime_wasi::cli::{StdinStream, StdoutStream};
 const MAIN_MODULE_NAME: &str = "main";
 const POLL_WRAPPER_FUNCTION_NAME: &str = "wasm_bpf_buffer_poll";
 
